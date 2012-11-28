@@ -3,7 +3,7 @@
 
 #include "multiseq.h"
 #include "fasta.h"
-#include "bam.h"
+#include "tact_bam.h"
 #include "base.h"
 #include "column.h"
 
