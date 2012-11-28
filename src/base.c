@@ -2,6 +2,7 @@
 #include "structmember.h"
 #include "debug.h"
 #include "base.h"
+
 /*
  * The Base nucleotide object
  */
@@ -12,41 +13,75 @@ PyMethodDef Base_methods[] = {
 };
 
 PyMemberDef Base_members[] = {
-    {"quality", T_INT, offsetof(tactmod_BaseObject, quality), 0, "base quality"},
     {NULL}
 };
 
-tactmod_BaseObject *chartobase(char base) {
-    PyObject *arglist = Py_BuildValue("(c)", base);
-    tactmod_BaseObject *ret = NULL;
-    ret = PyObject_CallObject((PyObject *)&tactmod_BaseType, arglist);
-    //Py_DECREF(arglist);
-    return ret;
+tactmod_BaseObject* chartobase(char base) {
+    switch(base) {
+        case 'A': case 'a':
+            Py_INCREF(tact_A);
+            return tact_A;
+        case 'C': case 'c':
+            Py_INCREF(tact_C);
+            return tact_C;
+        case 'G': case 'g':
+            Py_INCREF(tact_G);
+            return tact_G;
+        case 'T': case 't':
+            Py_INCREF(tact_T);
+            return tact_T;
+        case 'N': case 'n':
+            Py_INCREF(tact_N);
+            return tact_N;
+        case '.': case '-':
+            return Py_None;
+        case 'M': case 'm':
+            return Py_None;
+        case 'W': case 'w':
+            return Py_None;
+        case 'S':
+            return Py_None;
+        case 'Y':
+            return Py_None;
+        case 'K':
+            return Py_None;
+    }
+    return Py_None;
 }
 
-tactmod_BaseObject *inttobase(int base) {
-    char _b = 0x00;
-    switch(base) {
-        case BASE_A:
-            _b = 'A';
-            break;
-        case BASE_C:
-            _b = 'C';
-            break;
-        case BASE_G:
-            _b = 'G';
-            break;
-        case BASE_T:
-            _b = 'T';
-            break;
-        case BASE_N:
-            _b = 'N';
-            break;
+PyObject* complement(tactmod_BaseObject* b) {
+    switch(b->nucleotides) {
+        case 0x02:
+            Py_INCREF(tact_C);
+            return tact_C;
+        case 0x04:
+            Py_INCREF(tact_G);
+            return tact_G;
+        case 0x0F:
+            Py_INCREF(tact_N);
+            return tact_N;
     }
-    PyObject *arglist = Py_BuildValue("(c)", _b);
-    tactmod_BaseObject *ret = NULL;
-    ret = PyObject_CallObject((PyObject *)&tactmod_BaseType, arglist);
-    return ret;
+    return Py_None;
+}
+
+char inttochar(int b) {
+    switch(b) {
+        case 0x01:
+            return 'A';
+        case 0x02:
+            return 'C';
+        case 0x04:
+            return 'G';
+        case 0x08:
+            return 'T';
+        case 0x0F:
+            return 'N';
+    }
+    return '.';
+}
+
+char basetochar(tactmod_BaseObject *b) {
+    return inttochar(b->nucleotides);
 }
 
 PyTypeObject tactmod_BaseType = {
@@ -76,20 +111,20 @@ PyTypeObject tactmod_BaseType = {
 
 
 PyObject *Base_str(tactmod_BaseObject *self) {
-    return PyString_FromFormat("%c", iupactochar(self->nucleotides));
+    return PyString_FromFormat("%c", basetochar(self->nucleotides));
 }
 
 PyObject *Base_print(tactmod_BaseObject *self, FILE *fp, int flags) {
-    fprintf(fp, "%c", iupactochar(self->nucleotides));
+    fprintf(fp, "%c", basetochar(self));
     return 0;
 }
+
 void Base_dealloc(tactmod_BaseObject *self) {
     self->ob_type->tp_free((PyObject*)self);
 }
 
 PyObject *Base_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     tactmod_BaseObject *self;
-
     self = (tactmod_BaseObject *)type->tp_alloc(type, 0);
 
     if (self != NULL) {
@@ -122,66 +157,7 @@ PyObject *Base_cmp(PyObject *self, PyObject *other, int op) {
 }
 
 int Base_init(tactmod_BaseObject *self, PyObject *args, PyObject *kwds) {
-    char iupac = '-';
-    if(!PyArg_ParseTuple(args, "c", &iupac)) {
-        return NULL;
-    }
-    self->nucleotides = chartoiupac(iupac);
-    if (0) {
-
-    } else {
-        // Negative values are unknown
-        self->quality = -1;
-        self->tail_distance = -1;
-        self->forward_strand = -1;
-        self->duplicate = -1;
-        self->proper_pair = -1;
-        self->indels = 0;
-    }
+    char iupac;
+    self->nucleotides = 0x00;
     return 0;
-}
-
-iupac_base chartoiupac(char code) {
-    iupac_base r = 0;
-    switch(code) {
-        case 'n': case 'N':
-            r |= BASE_N;
-            break;
-
-        case 'a': case 'A':
-            r |= BASE_A;
-            break;
-
-        case 'C': case 'c':
-            r |= BASE_C;
-            break;
-
-        case 'g': case 'G':
-            r |= BASE_G;
-            break;
-
-        case 't': case 'T':
-            r |= BASE_T;
-            break;
-    }
-    return r;
-}
-
-char iupactochar(iupac_base base) {
-    if (base == BASE_N) {
-        return 'N';
-    }
-    if (base & BASE_A) {
-        return 'A';
-    }
-    if (base & BASE_C) {
-        return 'C';
-    }
-    if (base & BASE_G) {
-        return 'G';
-    }
-    if (base & BASE_T) {
-        return 'T';
-    }
-    return '-';
 }
