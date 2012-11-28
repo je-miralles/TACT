@@ -1,5 +1,5 @@
-#ifndef _bam_h
-#define _bam_h
+#ifndef _tact_bam_h
+#define _tact_bam_h
 #include <sam.h>
 #include "debug.h"
 #include "base.h"

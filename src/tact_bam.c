@@ -1,10 +1,10 @@
 #include <Python.h>
 #include <sam.h>
 #include "structmember.h"
-#include "bam.h"
+#include "tact_bam.h"
 
 /* 
- * bam.c serves as a driver for the samtools bam library
+ * tact_bam.c serves as a driver for the samtools bam library
  *
  */
 PyMethodDef Bam_methods[] = {
