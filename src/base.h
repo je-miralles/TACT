@@ -10,17 +10,10 @@
 
 typedef uint8_t base;
 
-// Definition of IUPAC nucleotide ambiguity codes
-// the bases pair with bits in alphabetical order ascending from the
-// lowest bit
-
-// The Base type
-// TODO: Base should be the parent class of a ReadBase object
 typedef struct {
     PyObject_HEAD
     base nucleotides;
 } tactmod_BaseObject;
-
 
 tactmod_BaseObject *tact_Del;
 tactmod_BaseObject *tact_A;
@@ -29,6 +22,7 @@ tactmod_BaseObject *tact_G;
 tactmod_BaseObject *tact_T;
 tactmod_BaseObject *tact_N;
 tactmod_BaseObject *tact_BaseArray[4];
+
 PyObject *Base_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 int Base_init(tactmod_BaseObject *self, PyObject *args, PyObject *kwds);
 void Base_dealloc(tactmod_BaseObject *self);
@@ -38,7 +32,7 @@ PyObject *Base_cmp(PyObject *self, PyObject *other, int op);
 
 tactmod_BaseObject *chartobase(char b);
 char basetochar(tactmod_BaseObject *b);
-char inttochar(int b);
+char inttochar(uint8_t b);
 
 PyObject *Base_str(tactmod_BaseObject *self);
 PyObject *Base_print(tactmod_BaseObject *self, FILE *fp, int flags);

@@ -8,13 +8,15 @@
  */
 
 PyMethodDef MultiSeq_methods[] = {
-    {"iterate", (PyCFunction)MultiSeq_iterate, METH_VARARGS, "iterate over a range"},
+    {"iterate", (PyCFunction)MultiSeq_iterate, METH_VARARGS,
+     "iterate over a range"},
     {"jump", (PyCFunction)MultiSeq_jump, METH_VARARGS, "jump to a position"},
     {NULL}
 };
 
 PyMemberDef MultiSeq_members[] = {
-    {"position", T_INT, offsetof(tactmod_MultiSeqObject, position), 0, "position"},
+    {"position", T_INT, offsetof(tactmod_MultiSeqObject, position), 0,
+     "position in reference genome"},
     {NULL}
 };
 
@@ -49,21 +51,30 @@ PyTypeObject tactmod_MultiSeqIterType = {
 };
 
 
-PyObject *MultiSeqIter_iter(PyObject *self) {
-    // Recursively create iterator objects from
-    // internal genomic sequences
+PyObject *
+MultiSeqIter_iter(PyObject *self)
+{
+    /* Recursively create iterator objects from
+       internal genomic sequences */
     Py_INCREF(self);
     return self;
 }
 
-void MultiSeq_dealloc(tactmod_MultiSeqObject *self) {
-    self->ob_type->tp_free((PyObject*)self);
-}
-void MultiSeqIter_dealloc(tactmod_MultiSeqIterObject *self) {
+void
+MultiSeq_dealloc(tactmod_MultiSeqObject *self)
+{
     self->ob_type->tp_free((PyObject*)self);
 }
 
-static PyObject *MultiSeq_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+void
+MultiSeqIter_dealloc(tactmod_MultiSeqIterObject *self)
+{
+    self->ob_type->tp_free((PyObject*)self);
+}
+
+static PyObject *
+MultiSeq_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
     tactmod_MultiSeqObject *self;
     
     self = (tactmod_MultiSeqObject *)type->tp_alloc(type, 0);
@@ -73,7 +84,9 @@ static PyObject *MultiSeq_new(PyTypeObject *type, PyObject *args, PyObject *kwds
     return (PyObject *)self;
 }
 
-int MultiSeq_init(tactmod_MultiSeqObject *self, PyObject *args, PyObject *kwds) {
+int
+MultiSeq_init(tactmod_MultiSeqObject *self, PyObject *args, PyObject *kwds)
+{
     PyObject *genomes;
     if (!PyArg_ParseTuple(args, "O", &genomes)) {
         return NULL;
@@ -84,7 +97,9 @@ int MultiSeq_init(tactmod_MultiSeqObject *self, PyObject *args, PyObject *kwds) 
     return 0;
 }
 
-PyObject *MultiSeq_jump(tactmod_MultiSeqObject *self, PyObject *args) {
+PyObject *
+MultiSeq_jump(tactmod_MultiSeqObject *self, PyObject *args)
+{
     int start = 0; 
     int end = 0;
     int tid;
@@ -101,13 +116,14 @@ PyObject *MultiSeq_jump(tactmod_MultiSeqObject *self, PyObject *args) {
             PyErr_SetString(PyExc_TypeError, "callback is not callable"); 
             return NULL;
         }
-    } else {
+    }
+    else {
         callback = Py_None;
     }
     int i;
     PyObject *item;
     PyObject *ret_tuple = PyList_New(self->n_genomes);
-    // TODO: Repair reference counting
+    /* TODO: Repair reference counting */
     for (i = 0; i < self->n_genomes; i++) {
         item = PySequence_Fast_GET_ITEM(self->genomes, i);
         Py_INCREF(item);
@@ -124,7 +140,6 @@ PyObject *MultiSeq_jump(tactmod_MultiSeqObject *self, PyObject *args) {
     Py_DECREF(seq_string);
     end = start + 1;
 
-    //PyObject *arglist = Py_BuildValue("(i)", start);
     if (callback == Py_None) {
         return ret_tuple;
     }
@@ -135,7 +150,9 @@ PyObject *MultiSeq_jump(tactmod_MultiSeqObject *self, PyObject *args) {
     return r;
 }
 
-PyObject *MultiSeq_iterate(tactmod_MultiSeqObject *self, PyObject *args) {
+PyObject *
+MultiSeq_iterate(tactmod_MultiSeqObject *self, PyObject *args)
+{
     tactmod_MultiSeqIterObject *iter;
     char *range = NULL;
     if(!PyArg_ParseTuple(args, "s", &range)) {
@@ -163,8 +180,8 @@ PyObject *MultiSeq_iterate(tactmod_MultiSeqObject *self, PyObject *args) {
         tactmod_GenericIterator *iterator = PyObject_CallMethod(item,
                                                 "iterate", "(s)", range);
 
-        // Set multiSeq iterator's position to the internal iterator
-        // if the internal iterator has decided on one
+        /* Set multiSeq iterator's position to the internal iterator
+           if the internal iterator has decided on one */
         if (iterator->position > -1) {
             iter->position = iterator->position;
         }
@@ -178,7 +195,9 @@ PyObject *MultiSeq_iterate(tactmod_MultiSeqObject *self, PyObject *args) {
     return (PyObject *)iter;
 }
 
-PyObject *MultiSeqIter_next(PyObject *self) {
+PyObject *
+MultiSeqIter_next(PyObject *self)
+{
     tactmod_MultiSeqIterObject *iter = (tactmod_MultiSeqIterObject *)self;
     int i;
     int start = 0;

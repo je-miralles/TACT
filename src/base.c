@@ -3,12 +3,9 @@
 #include "debug.h"
 #include "base.h"
 
-/*
- * The Base nucleotide object
- */
+/* The Base nucleotide object */
 
 PyMethodDef Base_methods[] = {
-//    {"__eq__", (PyCFunction)Base__eq__, METH_VARARGS, "Compare bases"},
     {NULL}
 };
 
@@ -16,7 +13,9 @@ PyMemberDef Base_members[] = {
     {NULL}
 };
 
-tactmod_BaseObject* chartobase(char base) {
+tactmod_BaseObject*
+chartobase(char base)
+{
     switch(base) {
         case 'A': case 'a':
             Py_INCREF(tact_A);
@@ -49,7 +48,9 @@ tactmod_BaseObject* chartobase(char base) {
     return Py_None;
 }
 
-PyObject* complement(tactmod_BaseObject* b) {
+PyObject*
+complement(tactmod_BaseObject* b)
+{
     switch(b->nucleotides) {
         case 0x02:
             Py_INCREF(tact_C);
@@ -64,7 +65,9 @@ PyObject* complement(tactmod_BaseObject* b) {
     return Py_None;
 }
 
-char inttochar(int b) {
+char
+inttochar(uint8_t b)
+{
     switch(b) {
         case 0x01:
             return 'A';
@@ -80,7 +83,9 @@ char inttochar(int b) {
     return '.';
 }
 
-char basetochar(tactmod_BaseObject *b) {
+char
+basetochar(tactmod_BaseObject *b)
+{
     return inttochar(b->nucleotides);
 }
 
@@ -109,21 +114,28 @@ PyTypeObject tactmod_BaseType = {
     Base_new
 };
 
-
-PyObject *Base_str(tactmod_BaseObject *self) {
+PyObject *
+Base_str(tactmod_BaseObject *self)
+{
     return PyString_FromFormat("%c", basetochar(self->nucleotides));
 }
 
-PyObject *Base_print(tactmod_BaseObject *self, FILE *fp, int flags) {
+PyObject *
+Base_print(tactmod_BaseObject *self, FILE *fp, int flags)
+{
     fprintf(fp, "%c", basetochar(self));
     return 0;
 }
 
-void Base_dealloc(tactmod_BaseObject *self) {
+void
+Base_dealloc(tactmod_BaseObject *self)
+{
     self->ob_type->tp_free((PyObject*)self);
 }
 
-PyObject *Base_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+PyObject *
+Base_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
     tactmod_BaseObject *self;
     self = (tactmod_BaseObject *)type->tp_alloc(type, 0);
 
@@ -133,7 +145,9 @@ PyObject *Base_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     return (PyObject *)self;
 }
 
-PyObject *Base_cmp(PyObject *self, PyObject *other, int op) {
+PyObject *
+Base_cmp(PyObject *self, PyObject *other, int op)
+{
     PyObject *result = NULL;
     tactmod_BaseObject *_self = (tactmod_BaseObject *) self;
     tactmod_BaseObject *_other = (tactmod_BaseObject *) other;
@@ -145,18 +159,29 @@ PyObject *Base_cmp(PyObject *self, PyObject *other, int op) {
             result = Py_False;
             break;
         case Py_EQ:
-            result = (_self->nucleotides & _other->nucleotides) ? Py_True : Py_False;
+            if (_self->nucleotides & _other->nucleotides) {
+                result = Py_True;
+            }
+            else {
+                result = Py_False;
+            }
             break;
         case Py_NE:
-            result = (_self->nucleotides & _other->nucleotides) ? Py_True : Py_False;
+            if (_self->nucleotides & _other->nucleotides) {
+                result = Py_False;
+            }
+            else {
+                result = Py_True;
+            }
             break;
     }
     Py_XINCREF(result);
     return result;  
-
 }
 
-int Base_init(tactmod_BaseObject *self, PyObject *args, PyObject *kwds) {
+int
+Base_init(tactmod_BaseObject *self, PyObject *args, PyObject *kwds)
+{
     char iupac;
     self->nucleotides = 0x00;
     return 0;
