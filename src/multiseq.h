@@ -37,9 +37,12 @@ typedef struct {
     PyObject *iterators;
 } tactmod_MultiSeqIterObject;
 
-// MultiSequence traverser object functions
-static PyObject *MultiSeq_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
-int MultiSeq_init(tactmod_MultiSeqObject *self, PyObject *args, PyObject *kwds);
+/* MultiSequence traverser object functions */
+static PyObject *MultiSeq_new(PyTypeObject *type, PyObject *args,
+                                                  PyObject *kwds);
+
+int MultiSeq_init(tactmod_MultiSeqObject *self, PyObject *args,
+                                                PyObject *kwds);
 
 PyObject *MultiSeq_jump(tactmod_MultiSeqObject *self, PyObject *args);
 PyObject *MultiSeq_genomes(tactmod_MultiSeqObject *self, PyObject *args);
@@ -51,7 +54,7 @@ void MultiSeqIter_dealloc(tactmod_MultiSeqIterObject *self);
 PyObject *MultiSeqIter_iter(PyObject *self);
 PyObject *MultiSeqIter_next(PyObject *self);
 
-// MultiSequence traverser object implementation details
+/* MultiSequence traverser object implementation details */
 PyMethodDef MultiSeq_methods[];
 PyMemberDef MultiSeq_members[];
 PyTypeObject tactmod_MultiSeqType;

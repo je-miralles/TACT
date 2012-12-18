@@ -7,10 +7,7 @@
 #include "base.h"
 #include "column.h"
 
-/*
- *  TACT
- *  Python extension for genomic datatypes
- */
+/* Python extension for genomic datatypes */
 
 static PyMethodDef TgtmodMethods[] =
 {
@@ -26,7 +23,6 @@ inittactmod(void) {
     tactmod_FastaType.tp_new = PyType_GenericNew;
     tactmod_MultiSeqIterType.tp_new = PyType_GenericNew;
     
-    // Initialize TACT types
     if (PyType_Ready(&tactmod_FastaType) < 0) return;
     if (PyType_Ready(&tactmod_FastaIterType) < 0) return;
     if (PyType_Ready(&tactmod_BamType) < 0) return;

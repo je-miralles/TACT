@@ -1,7 +1,6 @@
 #include <Python.h>
 #include "structmember.h"
 #include "debug.h"
-
 #include "base.h"
 #include "read_base.h"
 
@@ -11,7 +10,6 @@
  */
 
 PyMethodDef ReadBase_methods[] = {
-//    {"__eq__", (PyCFunction)ReadBase__eq__, METH_VARARGS, "Compare bases"},
     {"quality", (PyCFunction)phred_quality, METH_VARARGS, 
                                 "phred quality scaled into [0..1]"},
     {NULL}
@@ -50,23 +48,34 @@ PyTypeObject tactmod_ReadBaseType = {
     ReadBase_new
 };
 
-void ReadBase_dealloc(tactmod_ReadBaseObject *self) {
+void
+ReadBase_dealloc(tactmod_ReadBaseObject *self)
+{
     self->ob_type->tp_free((PyObject*)self);
 }
-PyObject *phred_quality(tactmod_ReadBaseObject *self) {
+
+static PyObject *
+phred_quality(tactmod_ReadBaseObject *self)
+{
     return Py_None;
 }
 
-PyObject *ReadBase_str(tactmod_ReadBaseObject *self) {
+PyObject *
+ReadBase_str(tactmod_ReadBaseObject *self)
+{
     return PyString_FromFormat("%c", basetochar(self->base->nucleotides));
 }
 
-PyObject *ReadBase_print(tactmod_ReadBaseObject *self, FILE *fp, int flags) {
+PyObject *
+ReadBase_print(tactmod_ReadBaseObject *self, FILE *fp, int flags)
+{
     fprintf(fp, "%c", basetochar(self->base));
     return 0;
 }
 
-PyObject *ReadBase_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+PyObject *
+ReadBase_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
     tactmod_ReadBaseObject *self;
     self = (tactmod_ReadBaseObject *)type->tp_alloc(type, 0);
 
@@ -78,7 +87,9 @@ PyObject *ReadBase_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     return (PyObject *)self;
 }
 
-int ReadBase_init(tactmod_ReadBaseObject *self, PyObject *args, PyObject *kwds) {
+int
+ReadBase_init(tactmod_ReadBaseObject *self, PyObject *args, PyObject *kwds)
+{
     return 0;
 }
 

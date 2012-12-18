@@ -4,7 +4,7 @@
 #include "base.h"
 #include "fasta.h"
 
-// Fasta file iterator functions
+/* Fasta file iterator functions */
 PyMethodDef Fasta_methods[] = {
     {"jump", (PyCFunction)Fasta_jump, METH_VARARGS, "jump to a position"},
     {"slice", (PyCFunction)Fasta_slice, METH_VARARGS, "slice a range"},
@@ -12,7 +12,7 @@ PyMethodDef Fasta_methods[] = {
 };
 
 PyMemberDef Fasta_members[] = {
-    {"contig", T_OBJECT_EX, offsetof(tactmod_FastaObject, contig), 0, "contig"},
+    {"contig", T_OBJECT_EX, offsetof(tactmod_FastaObject, contig), 0, "name"},
     {NULL}
 };
 
@@ -44,31 +44,40 @@ PyTypeObject tactmod_FastaIterType = {
     tactmod_FastaIter_next,
 };
 
-PyObject *tactmod_FastaIter_iter(PyObject *self) {
+PyObject *
+tactmod_FastaIter_iter(PyObject *self)
+{
     Py_INCREF(self);
     return self;
 }
 
-PyObject *tactmod_FastaIter_next(PyObject *self) {
+PyObject *
+tactmod_FastaIter_next(PyObject *self)
+{
     tactmod_FastaIter *iter = (tactmod_FastaIter *) self;
     if (iter->i < iter->length) {
         PyObject *t = chartobase(iter->sequence[iter->i]);
         (iter->i)++;
         return t;
-    } else {
+    }
+    else {
         free(iter->sequence);
         PyErr_SetNone(PyExc_StopIteration);
     }
     return NULL;
 }
 
-void Fasta_dealloc(tactmod_FastaObject *self) {
+void
+Fasta_dealloc(tactmod_FastaObject *self)
+{
     Py_XDECREF(self->contig);
     fai_destroy(self->fd);
     self->ob_type->tp_free((PyObject*)self);
 }
 
-static PyObject *Fasta_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+static PyObject *
+Fasta_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
     tactmod_FastaObject *self;
     self = (tactmod_FastaObject *)type->tp_alloc(type, 0);
     if (self != NULL) {
@@ -83,7 +92,9 @@ static PyObject *Fasta_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     return (PyObject *)self;
 }
 
-int Fasta_init(tactmod_FastaObject *self, PyObject *args, PyObject *kwds) {
+int
+Fasta_init(tactmod_FastaObject *self, PyObject *args, PyObject *kwds)
+{
     PyObject *filename=NULL;
 
     if (!PyArg_ParseTuple(args, "s", &filename)) {
@@ -95,16 +106,17 @@ int Fasta_init(tactmod_FastaObject *self, PyObject *args, PyObject *kwds) {
     if (!self->fd) {
         PyErr_SetString(PyExc_IOError, "Cannot open fasta file");
         return NULL;
-    //self->contig = filename;
     return 0;
     }
 }
 
-PyObject *Fasta_jump(tactmod_FastaObject *self, PyObject *args) {
+PyObject *
+Fasta_jump(tactmod_FastaObject *self, PyObject *args)
+{
     int start;
     PyObject *contig = NULL;
     int l;
-
+    char base = s[0];
     if (!PyArg_ParseTuple(args, "si", &contig, &start)) {
         return NULL;
     }
@@ -126,15 +138,13 @@ PyObject *Fasta_jump(tactmod_FastaObject *self, PyObject *args) {
         return Py_None;
     }
 
-    char base = s[0];
     free(s);
-    
-    
     return chartobase(base);
-    //return Py_BuildValue("c", s[0]);
 }
 
-PyObject *Fasta_slice(tactmod_FastaObject *self, PyObject *args) {
+PyObject *
+Fasta_slice(tactmod_FastaObject *self, PyObject *args)
+{
     long int start;
     long int end;
     PyObject *contig = NULL;
@@ -151,9 +161,11 @@ PyObject *Fasta_slice(tactmod_FastaObject *self, PyObject *args) {
         return NULL;
     }
 
-    // TODO: find a way to address positions in the Fasta file without
-    // this intermediate string
-    int str_len = snprintf(NULL, 0, "%s:%d-%d", (char *)contig, (int)start, (int)end);
+    /* TODO: find a way to address positions in the Fasta file without
+       this intermediate string */
+
+    int str_len = snprintf(NULL, 0, "%s:%d-%d", (char *)contig,
+                                                (int)start, (int)end);
     const char fetch_str[str_len];
     sprintf(fetch_str, "%s:%d-%d", (char *)contig, (int)start, (int)end);
     i->sequence = fai_fetch(self->fd, fetch_str, &length);

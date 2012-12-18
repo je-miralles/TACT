@@ -5,16 +5,16 @@
 #include "column.h"
 #include "base.h"
 
-// Column Object
+/* Column Object */
 PyMethodDef Column_methods[] = {
-    {"entropy", (PyCFunction)Column_entropy, METH_VARARGS, "entropy of column"},
+    {"entropy", (PyCFunction)Column_entropy, METH_VARARGS, "info content"},
     {"genotype", (PyCFunction)Column_genotype, METH_VARARGS, "genotype"},
     {NULL}
 };
 
 PyMemberDef Column_members[] = {
     {"depth", T_INT, offsetof(tactmod_ColumnObject, depth), 0, "depth"},
-    {"position", T_INT, offsetof(tactmod_ColumnObject, position), 0, "position"},
+    {"position", T_INT, offsetof(tactmod_ColumnObject, position), 0, "pos"},
     {"bases", T_OBJECT_EX, offsetof(tactmod_ColumnObject, bases), 0, "bases"},
     {NULL}
 };
@@ -36,11 +36,15 @@ PyTypeObject tactmod_ColumnType = {
     Column_new
 };
 
-void Column_dealloc(tactmod_ColumnObject *self) {
+void
+Column_dealloc(tactmod_ColumnObject *self)
+{
     self->ob_type->tp_free((PyObject*)self);
 }
 
-PyObject *Column_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+static PyObject *
+Column_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
+{
     tactmod_ColumnObject *self;
     self = (tactmod_ColumnObject *)type->tp_alloc(type, 0);
     int position = -1;
@@ -60,7 +64,9 @@ PyObject *Column_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     return (PyObject *)self;
 }
 
-int Column_init(tactmod_ColumnObject *self, PyObject *args, PyObject *kwds) {
+int
+Column_init(tactmod_ColumnObject *self, PyObject *args, PyObject *kwds)
+{
     return 0;
 }
 
@@ -68,7 +74,9 @@ int Column_init(tactmod_ColumnObject *self, PyObject *args, PyObject *kwds) {
  * Shannon Entropy
  * - \sum_{}^{bases} pr(base) * log_4 (pr(base))
  */
-static PyObject *Column_entropy(tactmod_ColumnObject *self, PyObject *args) {
+static PyObject *
+Column_entropy(tactmod_ColumnObject *self, PyObject *args)
+{
     float entropy = 0; 
     int base_counts[4];
 
@@ -83,7 +91,7 @@ static PyObject *Column_entropy(tactmod_ColumnObject *self, PyObject *args) {
     for (i = 0; i < 4; i++) {
         pr = base_counts[i] / depth;
         if (pr != 0) {
-            // Depend on the compiler to precompute logl(4)
+            /* Depend on the compiler to precompute logl(4) */
             entropy += pr * (logl(pr) / logl(4));
         }
     }
@@ -92,13 +100,15 @@ static PyObject *Column_entropy(tactmod_ColumnObject *self, PyObject *args) {
     return Py_BuildValue("f", entropy); 
 }
 
-/* 
- * Binomial Genotype Model
- */
-static PyObject *Column_genotype(tactmod_ColumnObject *self, PyObject *args) {
+/* Binomial Genotype Model */
+static PyObject *
+Column_genotype(tactmod_ColumnObject *self, PyObject *args)
+{
     return NULL;
 }
 
-static PyObject *Column_ploidy(tactmod_ColumnObject *self, PyObject *args) {
+static PyObject *
+Column_ploidy(tactmod_ColumnObject *self, PyObject *args)
+{
     return NULL;
 }
