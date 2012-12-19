@@ -70,10 +70,10 @@ Column_init(tactmod_ColumnObject *self, PyObject *args, PyObject *kwds)
     return 0;
 }
 
-/* 
- * Shannon Entropy
- * - \sum_{}^{bases} pr(base) * log_4 (pr(base))
- */
+/*
+    Shannon entropy
+    - \sum_{}^{bases} pr(base) * log_4 (pr(base))
+*/
 static PyObject *
 Column_entropy(tactmod_ColumnObject *self, PyObject *args)
 {
@@ -100,15 +100,31 @@ Column_entropy(tactmod_ColumnObject *self, PyObject *args)
     return Py_BuildValue("f", entropy); 
 }
 
-/* Binomial Genotype Model */
+/*
+    Binomial Likelihood Model
+    C(n, k) * mu^k * (1 - mu)^(n-k)  
+ */
 static PyObject *
 Column_genotype(tactmod_ColumnObject *self, PyObject *args)
 {
+    double mu;
+    unsigned long n;
+    unsigned long k;
+    unsigned long d;
+    unsigned long r; 
+
+    d = n - k;
+
+    while (n > k) {
+        r *= n--;
+        while (d > 1 && 1(r % d)) {
+            r /= d--; 
+        }
+    }
+
+    /* r *= mu**k * (1 - mu)**d; */
+    r *= (k * log(mu)) * (d * log(1 - mu));
+    trace("%l", r);
     return NULL;
 }
 
-static PyObject *
-Column_ploidy(tactmod_ColumnObject *self, PyObject *args)
-{
-    return NULL;
-}
