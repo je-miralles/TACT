@@ -123,7 +123,7 @@ Column_genotype(tactmod_ColumnObject *self, PyObject *args)
     }
 
     /* r *= mu**k * (1 - mu)**d; */
-    r *= (k * log(mu)) * (d * log(1 - mu));
+    r *= (k * log(mu)) + (d * log(1 - mu));
     trace("%l", r);
     return NULL;
 }
