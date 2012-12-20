@@ -73,11 +73,14 @@ Column_init(tactmod_ColumnObject *self, PyObject *args, PyObject *kwds)
 /*
     Shannon entropy
     - \sum_{}^{bases} pr(base) * log_4 (pr(base))
+        Measure of information content
 */
 static PyObject *
 Column_entropy(tactmod_ColumnObject *self, PyObject *args)
 {
-    float entropy = 0; 
+    float entropy, depth, pr;
+    int i;
+
     int base_counts[4];
 
     base_counts[0] = self->base_counts.A;
@@ -85,9 +88,9 @@ Column_entropy(tactmod_ColumnObject *self, PyObject *args)
     base_counts[2] = self->base_counts.G;
     base_counts[3] = self->base_counts.T;
 
-    float depth = self->depth;
-    float pr = 0;
-    int i;
+    depth = self->depth;
+    pr = 0;
+    entropy = 0;
     for (i = 0; i < 4; i++) {
         pr = base_counts[i] / depth;
         if (pr != 0) {
@@ -101,30 +104,36 @@ Column_entropy(tactmod_ColumnObject *self, PyObject *args)
 }
 
 /*
-    Binomial Likelihood Model
+    Binomial (Log) Likelihood Model
     C(n, k) * mu^k * (1 - mu)^(n-k)  
- */
+        This is supposed to come in handy for genotyping
+*/
 static PyObject *
-Column_genotype(tactmod_ColumnObject *self, PyObject *args)
+Column_binomial_ll(tactmod_ColumnObject *self, PyObject *args)
 {
     double mu;
-    unsigned long n;
-    unsigned long k;
-    unsigned long d;
-    unsigned long r; 
+    unsigned long n, _n, k, d, r;
 
+    if(!PyArg_ParseTuple(args, "f", &mu)) {
+        return NULL;
+    }
+    
+    n = self->depth;
+    k = 0; 
     d = n - k;
 
-    while (n > k) {
-        r *= n--;
+    _n = n;
+    /* n! / k! (n-k)! */
+    while (_n > k) {
+        r *= _n--;
         while (d > 1 && 1(r % d)) {
             r /= d--; 
         }
     }
 
     /* r *= mu**k * (1 - mu)**d; */
-    r *= (k * log(mu)) + (d * log(1 - mu));
+    r = log(r) + (k * log(mu)) + (d * log(1 - mu));
     trace("%l", r);
-    return NULL;
+    return Py_BuildValue("f", r);
 }
 
