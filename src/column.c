@@ -8,7 +8,7 @@
 /* Column Object */
 PyMethodDef Column_methods[] = {
     {"entropy", (PyCFunction)Column_entropy, METH_VARARGS, "info content"},
-    {"genotype", (PyCFunction)Column_genotype, METH_VARARGS, "genotype"},
+    {"binomial_ll", (PyCFunction)Column_binomial_ll, METH_VARARGS, "genotype"},
     {NULL}
 };
 

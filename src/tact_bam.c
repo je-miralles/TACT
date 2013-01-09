@@ -7,6 +7,7 @@
  * tact_bam.c serves as a driver for the samtools bam library
  *
  */
+
 PyMethodDef Bam_methods[] = {
     {"jump", (PyCFunction)Bam_jump, METH_VARARGS, "jump to a position"},
     {"slice", (PyCFunction)Bam_slice, METH_VARARGS, "slice a range"},
@@ -47,15 +48,18 @@ PyTypeObject tactmod_BamIterType = {
     tactmod_BamIter_next,
 };
 
-PyObject *tactmod_BamIter_iter(PyObject *self) {
+PyObject *
+tactmod_BamIter_iter(PyObject *self) {
     return NULL;
 }
 
-PyObject *tactmod_BamIter_next(PyObject *self) {
+PyObject *
+tactmod_BamIter_next(PyObject *self) {
     return NULL;
 }
 
-void Bam_dealloc(tactmod_BamObject *self) {
+void
+Bam_dealloc(tactmod_BamObject *self) {
     bam_index_destroy(self->idx);
     samclose(self->fd);
     //Py_XDECREF(self->text);
@@ -63,7 +67,8 @@ void Bam_dealloc(tactmod_BamObject *self) {
     self->ob_type->tp_free((PyObject*)self);
 }
 
-static PyObject *Bam_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
+static PyObject *
+Bam_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     tactmod_BamObject *self;
     self = (tactmod_BamObject *)type->tp_alloc(type, 0);
     if (self != NULL) {
@@ -78,7 +83,8 @@ static PyObject *Bam_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     return (PyObject *)self;
 }
 
-int Bam_init(tactmod_BamObject *self, PyObject *args, PyObject *kwds) {
+int
+Bam_init(tactmod_BamObject *self, PyObject *args, PyObject *kwds) {
     PyObject *filename = NULL;
     if (!PyArg_ParseTuple(args, "s", &filename)) {
         return NULL;
@@ -94,7 +100,8 @@ int Bam_init(tactmod_BamObject *self, PyObject *args, PyObject *kwds) {
     }
 }
 
-PyObject *Bam_jump(tactmod_BamObject *self, PyObject *args) {
+PyObject *
+Bam_jump(tactmod_BamObject *self, PyObject *args) {
     int start, end, tid, status; 
 
     tid = 0;
@@ -111,7 +118,8 @@ PyObject *Bam_jump(tactmod_BamObject *self, PyObject *args) {
 
     if (buffer.filter != NULL) {
         if (!PyCallable_Check(buffer.filter)) {
-            PyErr_SetString(PyExc_TypeError, "filter callback is not callable");
+            PyErr_SetString(PyExc_TypeError,
+                            "filter callback is not callable");
             buffer.filter = Py_None;
         }
     }
@@ -131,7 +139,8 @@ PyObject *Bam_jump(tactmod_BamObject *self, PyObject *args) {
     }
 
     PyObject *arglist = Py_BuildValue("(i)", start);
-    buffer.pileup = PyObject_CallObject((PyObject*)&tactmod_ColumnType,arglist);
+    buffer.pileup = PyObject_CallObject((PyObject*)&tactmod_ColumnType,
+                                        arglist);
     buffer.depth = 0;
     buffer.buf = bam_plbuf_init(pileup_func, buffer.pileup);
     status = bam_fetch(self->fd->x.bam, self->idx, tid,
@@ -141,19 +150,22 @@ PyObject *Bam_jump(tactmod_BamObject *self, PyObject *args) {
     return buffer.pileup;
 }
 
-PyObject *Bam_slice(tactmod_BamObject *self, PyObject *args) {
+PyObject *
+Bam_slice(tactmod_BamObject *self, PyObject *args) {
     return NULL;
 }
 
-static int fetch_func(const bam1_t *b, void *data) {
+static int
+fetch_func(const bam1_t *b, void *data) {
+    tactmod_BaseObject *read_base;
     uint8_t rmdup = 1;
     pileup_buffer *d = (pileup_buffer*)data;
     uint8_t offset = d->pileup->position - b->core.pos;
     uint8_t *p;
     if (d->populate_bases) {
         
-        tactmod_BaseObject *read_base = inttobase(bam1_seqi(bam1_seq(b),offset));
-        //tactmod_ReadBaseObject *read_base = int2base(bam1_seqi(bam1_seq(b), offs;
+        read_base = chartobase(inttochar(bam1_seqi(bam1_seq(b),offset)));
+        //tactmod_ReadBaseObject *read_base = int2base(bam1_seqi(bam1_s
         p = bam1_qual(b);
         //read_base->phred = p[offset];    
 
@@ -197,7 +209,8 @@ static int fetch_func(const bam1_t *b, void *data) {
     return 0;
 }
 
-static int pileup_func(uint32_t tid, uint32_t pos, int n,
-                        const bam_pileup1_t *pl, void *data) {
+static int
+pileup_func(uint32_t tid, uint32_t pos, int n,
+            const bam_pileup1_t *pl, void *data) {
     return 0;
 }

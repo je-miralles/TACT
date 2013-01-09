@@ -24,7 +24,7 @@ typedef struct {
 static PyObject *Column_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
 static PyObject *Column_entropy(tactmod_ColumnObject *self, PyObject *args);
-static PyObject *Column_genotype(tactmod_ColumnObject *self, PyObject *args);
+static PyObject *Column_binomial_ll(tactmod_ColumnObject *self, PyObject *args);
 
 int Column_setfilter(tactmod_ColumnObject *self, PyObject *args);
 int Column_init(tactmod_ColumnObject *self, PyObject *args, PyObject *kwds);
