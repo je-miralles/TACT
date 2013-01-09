@@ -158,7 +158,6 @@ Bam_slice(tactmod_BamObject *self, PyObject *args) {
 static int
 fetch_func(const bam1_t *b, void *data) {
     tactmod_BaseObject *read_base;
-    uint8_t rmdup = 1;
     pileup_buffer *d = (pileup_buffer*)data;
     uint8_t offset = d->pileup->position - b->core.pos;
     uint8_t *p;
@@ -171,7 +170,7 @@ fetch_func(const bam1_t *b, void *data) {
 
         if (d->filter == Py_None) {
             d->pileup->depth += 1;
-            PyList_Append(d->pileup->bases, read_base);
+            PyList_Append(d->pileup->bases, (PyObject*)read_base);
         } else {
             PyObject *result;
             PyObject *arglist = Py_BuildValue("(O)", read_base);
@@ -192,14 +191,14 @@ fetch_func(const bam1_t *b, void *data) {
             }
             if (result == Py_True) {
                 d->pileup->depth += 1;
-                PyList_Append(d->pileup->bases, read_base);
-                if (read_base->nucleotides == tact_A) {
+                PyList_Append(d->pileup->bases, (PyObject*)read_base);
+                if (read_base->nucleotides == (PyObject*)tact_A) {
                     d->pileup->base_counts.A++;
-                } else if (read_base->nucleotides == tact_C) {
+                } else if (read_base->nucleotides == (PyObject*)tact_C) {
                     d->pileup->base_counts.C++;
-                } else if (read_base->nucleotides == tact_G) {
+                } else if (read_base->nucleotides == (PyObject*)tact_G) {
                     d->pileup->base_counts.G++;
-                } else if (read_base->nucleotides == tact_T) {
+                } else if (read_base->nucleotides == (PyObject*)tact_T) {
                     d->pileup->base_counts.T++;
                 }
             }

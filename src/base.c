@@ -33,17 +33,17 @@ chartobase(char base)
             Py_INCREF(tact_N);
             return tact_N;
         case '.': case '-':
-            return Py_None;
+            return (void*)Py_None;
         case 'M': case 'm':
-            return Py_None;
+            return (void*)Py_None;
         case 'W': case 'w':
-            return Py_None;
+            return (void*)Py_None;
         case 'S':
-            return Py_None;
+            return (void*)Py_None;
         case 'Y':
-            return Py_None;
+            return (void*)Py_None;
         case 'K':
-            return Py_None;
+            return (void*)Py_None;
     }
     return Py_None;
 }
