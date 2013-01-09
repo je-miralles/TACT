@@ -126,7 +126,7 @@ Column_binomial_ll(tactmod_ColumnObject *self, PyObject *args)
     /* n! / k! (n-k)! */
     while (_n > k) {
         r *= _n--;
-        while (d > 1 && 1(r % d)) {
+        while (d > 1 && (r % d)) {
             r /= d--; 
         }
     }

@@ -30,7 +30,6 @@ inittactmod(void) {
     if (PyType_Ready(&tactmod_BaseType) < 0) return;
     if (PyType_Ready(&tactmod_ColumnType) < 0) return;
     if (PyType_Ready(&tactmod_MultiSeqType) < 0) return;
-    if (PyType_Ready(&tactmod_SequenceType) < 0) return;
 
     m = Py_InitModule("tactmod", TgtmodMethods);
 

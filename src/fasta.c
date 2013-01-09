@@ -113,10 +113,10 @@ Fasta_init(tactmod_FastaObject *self, PyObject *args, PyObject *kwds)
 PyObject *
 Fasta_jump(tactmod_FastaObject *self, PyObject *args)
 {
-    int start;
+    int start, l;
+    char *s;
     PyObject *contig = NULL;
-    int l;
-    char base = s[0];
+
     if (!PyArg_ParseTuple(args, "si", &contig, &start)) {
         return NULL;
     }
@@ -127,7 +127,7 @@ Fasta_jump(tactmod_FastaObject *self, PyObject *args)
     int str_len = snprintf(NULL, 0, "%s:%d-%d", (char *)contig, start, end);
     const char fetch_str[str_len];
     sprintf(fetch_str, "%s:%d-%d", (char *)contig, start, end);
-    char *s = fai_fetch(self->fd, fetch_str, &l);
+    s = fai_fetch(self->fd, fetch_str, &l);
     if (s == NULL) {
         PyErr_SetString(PyExc_ValueError, "Contig does not exist");
         return NULL;
@@ -139,7 +139,7 @@ Fasta_jump(tactmod_FastaObject *self, PyObject *args)
     }
 
     free(s);
-    return chartobase(base);
+    return chartobase(s[0]);
 }
 
 PyObject *

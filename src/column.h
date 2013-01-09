@@ -21,7 +21,7 @@ typedef struct {
     PyListObject *bases;
 } tactmod_ColumnObject;
 
-PyObject *Column_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
+static PyObject *Column_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 
 static PyObject *Column_entropy(tactmod_ColumnObject *self, PyObject *args);
 static PyObject *Column_genotype(tactmod_ColumnObject *self, PyObject *args);

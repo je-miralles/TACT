@@ -95,9 +95,7 @@ int Bam_init(tactmod_BamObject *self, PyObject *args, PyObject *kwds) {
 }
 
 PyObject *Bam_jump(tactmod_BamObject *self, PyObject *args) {
-    int start; 
-    int end;
-    int tid;
+    int start, end, tid, status; 
 
     tid = 0;
     pileup_buffer buffer;
@@ -135,9 +133,9 @@ PyObject *Bam_jump(tactmod_BamObject *self, PyObject *args) {
     PyObject *arglist = Py_BuildValue("(i)", start);
     buffer.pileup = PyObject_CallObject((PyObject*)&tactmod_ColumnType,arglist);
     buffer.depth = 0;
-    //pl_buf->buf = NULL;
     buffer.buf = bam_plbuf_init(pileup_func, buffer.pileup);
-    int status = bam_fetch(self->fd->x.bam, self->idx, tid, start, end, &buffer, fetch_func);
+    status = bam_fetch(self->fd->x.bam, self->idx, tid,
+                       start, end, &buffer, fetch_func);
     bam_plbuf_push(0, buffer.buf);
     bam_plbuf_destroy(buffer.buf);
     return buffer.pileup;
@@ -155,8 +153,9 @@ static int fetch_func(const bam1_t *b, void *data) {
     if (d->populate_bases) {
         
         tactmod_BaseObject *read_base = inttobase(bam1_seqi(bam1_seq(b),offset));
+        //tactmod_ReadBaseObject *read_base = int2base(bam1_seqi(bam1_seq(b), offs;
         p = bam1_qual(b);
-        read_base->quality = p[offset];    
+        //read_base->phred = p[offset];    
 
         if (d->filter == Py_None) {
             d->pileup->depth += 1;
@@ -182,13 +181,13 @@ static int fetch_func(const bam1_t *b, void *data) {
             if (result == Py_True) {
                 d->pileup->depth += 1;
                 PyList_Append(d->pileup->bases, read_base);
-                if (read_base->nucleotides == BASE_A) {
+                if (read_base->nucleotides == tact_A) {
                     d->pileup->base_counts.A++;
-                } else if (read_base->nucleotides == BASE_C) {
+                } else if (read_base->nucleotides == tact_C) {
                     d->pileup->base_counts.C++;
-                } else if (read_base->nucleotides == BASE_G) {
+                } else if (read_base->nucleotides == tact_G) {
                     d->pileup->base_counts.G++;
-                } else if (read_base->nucleotides == BASE_T) {
+                } else if (read_base->nucleotides == tact_T) {
                     d->pileup->base_counts.T++;
                 }
             }
