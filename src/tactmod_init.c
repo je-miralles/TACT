@@ -31,7 +31,7 @@ inittactmod(void) {
     if (PyType_Ready(&tactmod_ColumnType) < 0) return;
     if (PyType_Ready(&tactmod_MultiSeqType) < 0) return;
     if (PyType_Ready(&tactmod_MultiSeqIterType) < 0) return;
-    
+   
     m = Py_InitModule("tactmod", TgtmodMethods);
 
     Py_INCREF(&tactmod_FastaType);
@@ -52,5 +52,18 @@ inittactmod(void) {
     PyModule_AddObject(m, "MultiSeq", (PyObject *)&tactmod_MultiSeqType);
     PyModule_AddObject(m, "MultiSeqIter", 
                        (PyObject *)&tactmod_MultiSeqIterType);
+    
+    Py_INCREF(&tact_A);
+    tact_A = PyObject_CallObject((PyObject*)&tactmod_BaseType, NULL);
+    tact_A->nucleotides = 0x01;
+    Py_INCREF(&tact_C);
+    tact_C = PyObject_CallObject((PyObject*)&tactmod_BaseType, NULL);
+    tact_C->nucleotides = 0x02;
+    Py_INCREF(&tact_G);
+    tact_G = PyObject_CallObject((PyObject*)&tactmod_BaseType, NULL);
+    tact_G->nucleotides = 0x04;
+    Py_INCREF(&tact_T);
+    tact_T = PyObject_CallObject((PyObject*)&tactmod_BaseType, NULL);
+    tact_T->nucleotides = 0x08;
 }
 

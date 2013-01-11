@@ -106,8 +106,8 @@ Fasta_init(tactmod_FastaObject *self, PyObject *args, PyObject *kwds)
     if (!self->fd) {
         PyErr_SetString(PyExc_IOError, "Cannot open fasta file");
         return NULL;
-    return 0;
     }
+    return 0;
 }
 
 PyObject *
@@ -115,6 +115,7 @@ Fasta_jump(tactmod_FastaObject *self, PyObject *args)
 {
     int start, l;
     char *s;
+    char b;
     PyObject *contig = NULL;
 
     if (!PyArg_ParseTuple(args, "si", &contig, &start)) {
@@ -132,14 +133,14 @@ Fasta_jump(tactmod_FastaObject *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "Contig does not exist");
         return NULL;
     }
-
     if (s[0] == '\x00') {
         Py_INCREF(Py_None);
         return Py_None;
     }
 
+    b = s[0];
     free(s);
-    return chartobase(s[0]);
+    return chartobase(b);
 }
 
 PyObject *
@@ -150,7 +151,6 @@ Fasta_slice(tactmod_FastaObject *self, PyObject *args)
     PyObject *contig = NULL;
     int length;
     tactmod_FastaIter *i;
-
     if (!PyArg_ParseTuple(args, "sll", &contig, &start, &end)) return NULL;
 
     i = PyObject_New(tactmod_FastaIter, &tactmod_FastaIterType);
