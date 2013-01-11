@@ -23,17 +23,6 @@ typedef struct {
     int i;
     PyObject *content;
     tactmod_MultiSeqObject *parent;
-} tactmod_GenericIterator;
-
-typedef struct {
-    PyObject_HEAD
-    int position;
-    char *contig;
-    int start;
-    int end;
-    int i;
-    PyObject *content;
-    tactmod_MultiSeqObject *parent;
     PyObject *iterators;
 } tactmod_MultiSeqIterObject;
 

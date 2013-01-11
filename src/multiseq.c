@@ -39,7 +39,7 @@ PyTypeObject tactmod_MultiSeqType = {
 
 PyTypeObject tactmod_MultiSeqIterType = {
     PyObject_HEAD_INIT(NULL)
-    0,"tactmod.MultiSeqIter", sizeof(tactmod_MultiSeqIterObject),
+    0,"tactmod.MultiSeqIter", sizeof(tactmod_MultiSeqObject),
     0,
     (destructor)MultiSeqIter_dealloc,
     0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -76,7 +76,6 @@ static PyObject *
 MultiSeq_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
 {
     tactmod_MultiSeqObject *self;
-    
     self = (tactmod_MultiSeqObject *)type->tp_alloc(type, 0);
     if (self != NULL) {
         self->position = 0;

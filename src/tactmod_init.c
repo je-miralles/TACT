@@ -21,8 +21,8 @@ inittactmod(void) {
     PyObject *m;
     
     tactmod_FastaType.tp_new = PyType_GenericNew;
-    tactmod_MultiSeqIterType.tp_new = PyType_GenericNew;
-    
+//    tactmod_MultiSeqIterType.tp_new = PyType_GenericNew;
+   
     if (PyType_Ready(&tactmod_FastaType) < 0) return;
     if (PyType_Ready(&tactmod_FastaIterType) < 0) return;
     if (PyType_Ready(&tactmod_BamType) < 0) return;
@@ -30,7 +30,8 @@ inittactmod(void) {
     if (PyType_Ready(&tactmod_BaseType) < 0) return;
     if (PyType_Ready(&tactmod_ColumnType) < 0) return;
     if (PyType_Ready(&tactmod_MultiSeqType) < 0) return;
-
+    if (PyType_Ready(&tactmod_MultiSeqIterType) < 0) return;
+    
     m = Py_InitModule("tactmod", TgtmodMethods);
 
     Py_INCREF(&tactmod_FastaType);
@@ -49,7 +50,7 @@ inittactmod(void) {
     PyModule_AddObject(m, "Base", (PyObject *)&tactmod_BaseType);
     PyModule_AddObject(m, "Column", (PyObject *)&tactmod_ColumnType);
     PyModule_AddObject(m, "MultiSeq", (PyObject *)&tactmod_MultiSeqType);
-    PyModule_AddObject(m, "MultiSeqIter",
+    PyModule_AddObject(m, "MultiSeqIter", 
                        (PyObject *)&tactmod_MultiSeqIterType);
 }
 
