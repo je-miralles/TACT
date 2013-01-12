@@ -18,6 +18,9 @@ PyObject *Fasta_jump(tactmod_FastaObject *self, PyObject *args);
 PyObject *Fasta_slice(tactmod_FastaObject *self, PyObject *args);
 void Fasta_dealloc(tactmod_FastaObject *self);
 
+PyObject *Fasta_enter(PyObject *self);
+PyObject *Fasta_exit(PyObject *self);
+
 // Fasta file object implementation details
 PyMethodDef Fasta_methods[];
 

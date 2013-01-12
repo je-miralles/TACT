@@ -43,6 +43,8 @@ void MultiSeqIter_dealloc(tactmod_MultiSeqIterObject *self);
 PyObject *MultiSeqIter_iter(PyObject *self);
 PyObject *MultiSeqIter_next(PyObject *self);
 
+PyObject *MultiSeq_enter(PyObject *self);
+PyObject *MultiSeq_exit(PyObject *self);
 /* MultiSequence traverser object implementation details */
 PyMethodDef MultiSeq_methods[];
 PyMemberDef MultiSeq_members[];

@@ -8,6 +8,8 @@
 PyMethodDef Fasta_methods[] = {
     {"jump", (PyCFunction)Fasta_jump, METH_VARARGS, "jump to a position"},
     {"slice", (PyCFunction)Fasta_slice, METH_VARARGS, "slice a range"},
+    {"__enter__", (PyCFunction)Fasta_enter, METH_VARARGS, "context entry"},
+    {"__exit__", (PyCFunction)Fasta_exit, METH_VARARGS, "context exit"},
     {NULL}
 };
 
@@ -43,6 +45,20 @@ PyTypeObject tactmod_FastaIterType = {
     tactmod_FastaIter_iter,
     tactmod_FastaIter_next,
 };
+
+PyObject *
+Fasta_enter(PyObject *self)
+{
+    trace("context entry");
+    return self;
+}
+
+PyObject *
+Fasta_exit(PyObject *self)
+{
+    trace("context exit");
+    return self;
+}
 
 PyObject *
 tactmod_FastaIter_iter(PyObject *self)

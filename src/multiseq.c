@@ -11,6 +11,8 @@ PyMethodDef MultiSeq_methods[] = {
     {"iterate", (PyCFunction)MultiSeq_iterate, METH_VARARGS,
      "iterate over a range"},
     {"jump", (PyCFunction)MultiSeq_jump, METH_VARARGS, "jump to a position"},
+    {"__exit__", (PyCFunction)MultiSeq_exit, METH_VARARGS, "magic method"},
+    {"__enter__", (PyCFunction)MultiSeq_exit, METH_VARARGS, "magic method"},
     {NULL}
 };
 
@@ -50,6 +52,17 @@ PyTypeObject tactmod_MultiSeqIterType = {
     MultiSeqIter_next,
 };
 
+PyObject *
+MultiSeq_enter(PyObject *self)
+{
+    return self;
+}
+
+PyObject *
+MultiSeq_exit(PyObject *self)
+{
+    return self;
+}
 
 PyObject *
 MultiSeqIter_iter(PyObject *self)
