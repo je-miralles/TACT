@@ -48,9 +48,9 @@ Included here are some terms as they are relevant to the API, generally
 corrosponding to tactmod types.
 
 ### Alignment
-A sequence of bases that is mapped to a reference sequence.  Inherits from
-the tactmod Sequence class.  Includes information about the quality of the
-mapping.
+A Read that is mapped to a reference sequence.  Inherits from the tactmod 
+Sequence class.  Includes information about the quality of the mapping, strand
+direction, and cigar operations and describe the alignment.
 
 ### Bam
 A compressed binary format for storing aligned reads.  A tactmod Bam object
@@ -60,12 +60,11 @@ and iteration.
 ### Base
 A member of the set A, C, G, T.  The underlying struct that represents these
 nucleotides encodes the identity with 4 bits.  In this way the IUPAC ambiguity
-codes may be represented and tested easily with this type.
+codes can also be represented and tested.
 
 ### Column
-A sequence of read bases covering a position.  Implements methods of 
-particular interest to coinciding bases.  Inherits from the tactmod 
-Sequence class.
+An unordered sequence of read bases covering a position.  Inherits from the 
+tactmod Sequence class.
 
 ### Contig
 A contiguous sequence of which a group typically constitute a genome.
@@ -75,11 +74,11 @@ The fasta format is used to store a set of reference sequences (contigs).
 This class implements an iterator over buffered ranges of a fasta file.
 
 ### Pileup
-For a position in a reference sequence there will be a number of aligned
+For a position in a mapped sequence there will be an unordered set of aligned
 reads that pile over it.
 
 ### Read
-A sequence of bases that have been read using sequencing technology.
+An ordered set of bases that have been read using sequencing technology.
 
 ### ReadBase
 Holds a pointer to a base object.  An instance of a unique base that has
@@ -93,4 +92,5 @@ canonical position.
 ### Sequence
 Inherits from the python sequence class.  Adds an integer value to the
 object structure that holds the canonical position of the sequence with
-respect to a sequence.
+respect to a sequence.  Generalizes the relationship between Columns, Reads, and
+Alignments.
