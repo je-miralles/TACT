@@ -144,7 +144,7 @@ Bam_jump(tactmod_BamObject *self, PyObject *args) {
     buffer.depth = 0;
     buffer.buf = bam_plbuf_init(pileup_func, buffer.pileup);
     status = bam_fetch(self->fd->x.bam, self->idx, tid,
-                       start, end, &buffer, fetch_func);
+                       start, end, &buffer, fetch_column);
     bam_plbuf_push(0, buffer.buf);
     bam_plbuf_destroy(buffer.buf);
     return buffer.pileup;
@@ -156,7 +156,7 @@ Bam_slice(tactmod_BamObject *self, PyObject *args) {
 }
 
 static int
-fetch_func(const bam1_t *b, void *data) {
+fetch_column(const bam1_t *b, void *data) {
     tactmod_BaseObject *read_base;
     pileup_buffer *d = (pileup_buffer*)data;
     uint8_t offset = d->pileup->position - b->core.pos;
@@ -205,6 +205,16 @@ fetch_func(const bam1_t *b, void *data) {
         }
     }
     bam_plbuf_push(b, d->buf);
+    return 0;
+}
+
+static int
+fetch_pileup(const bam1_t *b, void *data) {
+    //tactmod_ReadObject *read;
+    // create a Read object from the string of bam1_seq() bases
+    //read = PyObject_CallObject(tactmod_Readbam1_seq(b));
+    //pileup_buffer *d = (pileup_buffer*)data;
+    //bam_plbuf_push(b, d->buf);
     return 0;
 }
 

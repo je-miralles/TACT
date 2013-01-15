@@ -47,7 +47,8 @@ PyTypeObject tactmod_BamIterType;
 //int pileup_func(uint32_t tid, uint32_t pos, int n,
 //                      const bam_pileup1_t *pl, void *data);
 
+static int fetch_column(const bam1_t *b, void *data);
+static int fetch_pileup(const bam1_t *b, void *data);
 
-static int fetch_func(const bam1_t *b, void *data);
 static int pileup_func(uint32_t tid, uint32_t pos, int n, const bam_pileup1_t *pl, void *data);
 #endif
