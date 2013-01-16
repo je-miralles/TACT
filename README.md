@@ -73,6 +73,9 @@ A contiguous sequence of which a group typically constitute a genome.
 The fasta format is used to store a set of reference sequences (contigs).
 This class implements an iterator over buffered ranges of a fasta file.
 
+### Fastq
+A Fastq is an unordered set of Reads from a sequencer.
+
 ### Pileup
 For a position in a mapped sequence there will be an unordered set of aligned
 reads that pile over it.
@@ -94,3 +97,8 @@ Inherits from the python sequence class.  Adds an integer value to the
 object structure that holds the canonical position of the sequence with
 respect to a sequence.  Generalizes the relationship between Columns, Reads, and
 Alignments.
+
+### VCF
+The Variant Call Format is an annotated list of positions.  This object
+implements an iterator over this information that can be run in tandem
+with another iterator.
