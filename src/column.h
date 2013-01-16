@@ -12,12 +12,7 @@ typedef struct {
        equal to the depth of the pileup column */
     long int position;
     unsigned int depth;
-    struct {
-        unsigned int A;
-        unsigned int C;
-        unsigned int T;
-        unsigned int G;
-    } base_counts;
+    unsigned int base_counts[4];
     PyListObject *bases;
 } tactmod_ColumnObject;
 

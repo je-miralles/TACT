@@ -162,46 +162,22 @@ fetch_column(const bam1_t *b, void *data) {
     uint8_t offset = d->pileup->position - b->core.pos;
     uint8_t *p;
     if (d->populate_bases) {
-        
         read_base = chartobase(inttochar(bam1_seqi(bam1_seq(b),offset)));
         //tactmod_ReadBaseObject *read_base = int2base(bam1_seqi(bam1_s
         p = bam1_qual(b);
         //read_base->phred = p[offset];    
 
-        if (d->filter == Py_None) {
-            d->pileup->depth += 1;
-            PyList_Append(d->pileup->bases, (PyObject*)read_base);
-        } else {
-            PyObject *result;
-            PyObject *arglist = Py_BuildValue("(O)", read_base);
-            if (!arglist) {
-                return 1;
-            }
-            result = PyObject_CallObject(d->filter, arglist);
-            if (!result) {
-                return 1;
-            }
-            
-            //result = Py_True;
+        d->pileup->depth += 1;
+        PyList_Append(d->pileup->bases, (PyObject*)read_base);
 
-            Py_INCREF(result);
-            if (PyBool_Check(result)) {
-            } else {
-                return 1;
-            }
-            if (result == Py_True) {
-                d->pileup->depth += 1;
-                PyList_Append(d->pileup->bases, (PyObject*)read_base);
-                if (read_base->nucleotides == (PyObject*)tact_A) {
-                    d->pileup->base_counts.A++;
-                } else if (read_base->nucleotides == (PyObject*)tact_C) {
-                    d->pileup->base_counts.C++;
-                } else if (read_base->nucleotides == (PyObject*)tact_G) {
-                    d->pileup->base_counts.G++;
-                } else if (read_base->nucleotides == (PyObject*)tact_T) {
-                    d->pileup->base_counts.T++;
-                }
-            }
+        if (read_base == (PyObject*)tact_A) {
+            d->pileup->base_counts[0]++;
+        } else if (read_base == (PyObject*)tact_C) {
+            d->pileup->base_counts[1]++;
+        } else if (read_base == (PyObject*)tact_G) {
+            d->pileup->base_counts[2]++;
+        } else if (read_base == (PyObject*)tact_T) {
+            d->pileup->base_counts[3]++;
         }
     }
     bam_plbuf_push(b, d->buf);

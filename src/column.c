@@ -56,10 +56,10 @@ Column_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         self->position = position;
         self->bases = PyList_New(0);
         Py_INCREF(self->bases);
-        self->base_counts.A = 0;
-        self->base_counts.C = 0;
-        self->base_counts.T = 0;
-        self->base_counts.G = 0;
+        self->base_counts[0] = 0;
+        self->base_counts[1] = 0;
+        self->base_counts[2] = 0;
+        self->base_counts[3] = 0;
     }
     return (PyObject *)self;
 }
@@ -81,18 +81,11 @@ Column_entropy(tactmod_ColumnObject *self, PyObject *args)
     float entropy, depth, pr;
     int i;
 
-    int base_counts[4];
-
-    base_counts[0] = self->base_counts.A;
-    base_counts[1] = self->base_counts.C;
-    base_counts[2] = self->base_counts.G;
-    base_counts[3] = self->base_counts.T;
-
     depth = self->depth;
     pr = 0;
     entropy = 0;
     for (i = 0; i < 4; i++) {
-        pr = base_counts[i] / depth;
+        pr = self->base_counts[i] / depth;
         if (pr != 0) {
             /* Depend on the compiler to precompute logl(4) */
             entropy += pr * (logl(pr) / logl(4));
@@ -133,7 +126,6 @@ Column_binomial_ll(tactmod_ColumnObject *self, PyObject *args)
 
     /* r *= mu**k * (1 - mu)**d; */
     r = log(r) + (k * log(mu)) + (d * log(1 - mu));
-    trace("%l", r);
     return Py_BuildValue("f", r);
 }
 
