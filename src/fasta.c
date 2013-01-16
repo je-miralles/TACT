@@ -49,14 +49,12 @@ PyTypeObject tactmod_FastaIterType = {
 PyObject *
 Fasta_enter(PyObject *self)
 {
-    trace("context entry");
     return self;
 }
 
 PyObject *
 Fasta_exit(PyObject *self)
 {
-    trace("context exit");
     return self;
 }
 
