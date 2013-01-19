@@ -157,11 +157,36 @@ Bam_slice(tactmod_BamObject *self, PyObject *args) {
 
 static int
 fetch_column(const bam1_t *b, void *data) {
+    int i;
     tactmod_BaseObject *read_base;
     pileup_buffer *d = (pileup_buffer*)data;
     uint8_t offset = d->pileup->position - b->core.pos;
     uint8_t *p;
+    uint32_t ops;
+    uint32_t op;
+    uint32_t matches;
+
     if (d->populate_bases) {
+        ops = b->core.n_cigar;
+        op = bam1_cigar(b)[1] & 0xF;
+        matches = 0;
+
+        for(i = 0; i < ops; i++) {
+            op = bam1_cigar(b)[i] & 0xF;
+            if (op == BAM_CMATCH) {
+                matches = bam1_cigar(b)[0] >> 4;
+            }
+            if (op == BAM_CINS) {
+                if (offset > matches) {
+                    offset += 1;
+                }
+            }
+            if (op == BAM_CDEL) {
+                if (offset > matches) {
+                    offset -= 1;
+                }
+            }
+        }
         read_base = chartobase(inttochar(bam1_seqi(bam1_seq(b),offset)));
         //tactmod_ReadBaseObject *read_base = int2base(bam1_seqi(bam1_s
         p = bam1_qual(b);

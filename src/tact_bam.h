@@ -28,6 +28,8 @@ static PyObject *Bam_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
 int Bam_init(tactmod_BamObject *self, PyObject *args, PyObject *kwds);
 PyObject *Bam_jump(tactmod_BamObject *self, PyObject *args);
 PyObject *Bam_slice(tactmod_BamObject *self, PyObject *args);
+PyObject *Bam_counts(tactmod_BamObject *self, PyObject *args);
+PyObject *Bam_pileup(tactmod_BamObject *self, PyObject *args);
 void Bam_dealloc(tactmod_BamObject *self);
 
 // Bamfile object implementation details
@@ -49,6 +51,7 @@ PyTypeObject tactmod_BamIterType;
 
 static int fetch_column(const bam1_t *b, void *data);
 static int fetch_pileup(const bam1_t *b, void *data);
+static int fetch_counts(const bam1_t *b, void *data);
 
 static int pileup_func(uint32_t tid, uint32_t pos, int n, const bam_pileup1_t *pl, void *data);
 #endif
