@@ -50,11 +50,19 @@ PyTypeObject tactmod_BamIterType = {
 
 PyObject *
 tactmod_BamIter_iter(PyObject *self) {
-    return NULL;
+    Py_INCREF(self);
+    return self;
 }
 
 PyObject *
 tactmod_BamIter_next(PyObject *self) {
+    tactmod_BamIter *iterator = (tactmod_BamIter *)self; 
+    while((iterator->position + iterator->offset) < iterator->stop) {
+        iterator->offset += 1;
+        return Py_None;
+    }
+
+    PyErr_SetNone(PyExc_StopIteration);
     return NULL;
 }
 
@@ -152,7 +160,21 @@ Bam_jump(tactmod_BamObject *self, PyObject *args) {
 
 PyObject *
 Bam_slice(tactmod_BamObject *self, PyObject *args) {
-    return NULL;
+    tactmod_BamIter *iter;
+    int tid, start, stop;
+    pileup_buffer buffer;
+    PyObject *contig;
+    buffer.filter = NULL;
+    buffer.populate_bases = 1;
+    if (!PyArg_ParseTuple(args, "iii|O", &tid, &start, &stop, &buffer.filter)) {
+        return NULL;
+    }
+    iter = (tactmod_BamIter *)PyObject_New(tactmod_BamIter, &tactmod_BamIterType);
+    iter->bam = self;
+    iter->offset = 0;
+    iter->position = start;
+    iter->stop = stop;
+    return (PyObject *)iter;
 }
 
 static int

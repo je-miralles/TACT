@@ -19,7 +19,6 @@ typedef struct {
     PyObject *contig;
     samfile_t *fd;
     bam_index_t *idx;
-
     PyObject *column_callback;
 } tactmod_BamObject;
 
@@ -40,6 +39,11 @@ PyTypeObject tactmod_BamType;
 // The iterator
 typedef struct {
     PyObject_HEAD
+    tactmod_BamObject *bam;
+    long int position;
+    long int offset;
+    long int start;
+    long int stop;
 } tactmod_BamIter;
 
 PyObject *tactmod_BamIter_iter(PyObject *self);
