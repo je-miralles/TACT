@@ -16,6 +16,7 @@ PyMemberDef Column_members[] = {
     {"depth", T_INT, offsetof(tactmod_ColumnObject, depth), 0, "depth"},
     {"position", T_INT, offsetof(tactmod_ColumnObject, position), 0, "pos"},
     {"bases", T_OBJECT_EX, offsetof(tactmod_ColumnObject, bases), 0, "bases"},
+    {"counts", T_OBJECT_EX, offsetof(tactmod_ColumnObject, counts), 0, "counts"},
     {NULL}
 };
 
@@ -112,7 +113,7 @@ Column_binomial_ll(tactmod_ColumnObject *self, PyObject *args)
     }
     
     n = self->depth;
-    k = 0; 
+    k = self->base_counts[0]; 
     d = n - k;
 
     _n = n;

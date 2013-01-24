@@ -11,6 +11,7 @@
 PyMethodDef Bam_methods[] = {
     {"jump", (PyCFunction)Bam_jump, METH_VARARGS, "jump to a position"},
     {"slice", (PyCFunction)Bam_slice, METH_VARARGS, "slice a range"},
+
     {NULL}
 };
 
@@ -77,6 +78,9 @@ tactmod_BamIter_next(PyObject *self) {
                        start, end, &buffer, fetch_column);
         bam_plbuf_push(0, buffer.buf);
         bam_plbuf_destroy(buffer.buf);
+        if (buffer.pileup->depth == 0) {
+            continue;
+        }
         return buffer.pileup;
     }
 
@@ -199,6 +203,7 @@ static int
 fetch_column(const bam1_t *b, void *data) {
     int i;
     tactmod_BaseObject *read_base;
+    PyIntObject *count;
     pileup_buffer *d = (pileup_buffer*)data;
     uint8_t offset = d->pileup->position - b->core.pos;
     uint8_t *p;
@@ -245,6 +250,13 @@ fetch_column(const bam1_t *b, void *data) {
         }
     }
     bam_plbuf_push(b, d->buf);
+    d->pileup->counts = PyTuple_New(4);
+    Py_INCREF(d->pileup->counts);
+    for(i = 0; i < 4; i++) {
+        count = PyInt_FromLong(d->pileup->base_counts[i]);
+        Py_INCREF(count);
+        PyTuple_SET_ITEM(d->pileup->counts, i, count);
+    }
     return 0;
 }
 

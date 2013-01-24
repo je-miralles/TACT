@@ -14,6 +14,7 @@ typedef struct {
     unsigned int depth;
     unsigned int base_counts[4];
     PyListObject *bases;
+    PyTupleObject *counts;
 } tactmod_ColumnObject;
 
 static PyObject *Column_new(PyTypeObject *type, PyObject *args, PyObject *kwds);
