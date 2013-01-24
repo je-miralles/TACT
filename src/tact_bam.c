@@ -56,10 +56,28 @@ tactmod_BamIter_iter(PyObject *self) {
 
 PyObject *
 tactmod_BamIter_next(PyObject *self) {
+    int start;
+    int end;
+    int status;
+    int tid;
+    pileup_buffer buffer;
     tactmod_BamIter *iterator = (tactmod_BamIter *)self; 
+    tactmod_BamObject *bam = iterator->bam;
     while((iterator->position + iterator->offset) < iterator->stop) {
         iterator->offset += 1;
-        return Py_None;
+        start = iterator->offset + iterator->position;
+        PyObject *arglist = Py_BuildValue("(i)", start);
+        buffer.pileup = PyObject_CallObject((PyObject*)&tactmod_ColumnType,
+                                        arglist);
+        buffer.depth = 0;
+        buffer.buf = bam_plbuf_init(pileup_func, buffer.pileup);
+        end = start + 1;
+        tid = 0;
+        status = bam_fetch(bam->fd->x.bam, bam->idx, tid,
+                       start, end, &buffer, fetch_column);
+        bam_plbuf_push(0, buffer.buf);
+        bam_plbuf_destroy(buffer.buf);
+        return buffer.pileup;
     }
 
     PyErr_SetNone(PyExc_StopIteration);
@@ -187,8 +205,8 @@ fetch_column(const bam1_t *b, void *data) {
     uint32_t ops;
     uint32_t op;
     uint32_t matches;
-
-    if (d->populate_bases) {
+    if (1) {
+    //if (d->populate_bases) {
         ops = b->core.n_cigar;
         op = bam1_cigar(b)[1] & 0xF;
         matches = 0;
@@ -213,7 +231,6 @@ fetch_column(const bam1_t *b, void *data) {
         //tactmod_ReadBaseObject *read_base = int2base(bam1_seqi(bam1_s
         p = bam1_qual(b);
         //read_base->phred = p[offset];    
-
         d->pileup->depth += 1;
         PyList_Append(d->pileup->bases, (PyObject*)read_base);
 
