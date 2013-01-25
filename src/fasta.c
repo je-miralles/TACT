@@ -72,6 +72,7 @@ tactmod_FastaIter_next(PyObject *self)
     if (iter->i < iter->length) {
         PyObject *t = chartobase(iter->sequence[iter->i]);
         (iter->i)++;
+        iter->position++;
         return t;
     }
     else {
@@ -187,6 +188,7 @@ Fasta_slice(tactmod_FastaObject *self, PyObject *args)
         PyErr_SetString(PyExc_ValueError, "Invalid range");
         return NULL;
     }
+    i->position = start;
     i->length = length;
     i->i = 0;
     Py_INCREF(i);

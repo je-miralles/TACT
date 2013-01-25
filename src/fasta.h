@@ -31,9 +31,11 @@ PyTypeObject tactmod_FastaType;
 // The iterator
 typedef struct {
     PyObject_HEAD
+    long int position;
     long int length;
     long int i;
     char *sequence;
+    tactmod_FastaObject *fasta;
 } tactmod_FastaIter;
 
 PyObject *tactmod_FastaIter_iter(PyObject *self);
