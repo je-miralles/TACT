@@ -23,7 +23,7 @@ inittactmod(void) {
     PyObject *m;
     
     tactmod_FastaType.tp_new = PyType_GenericNew;
-//    tactmod_MultiSeqIterType.tp_new = PyType_GenericNew;
+    tactmod_MultiSeqIterType.tp_new = PyType_GenericNew;
    
     if (PyType_Ready(&tactmod_FastaType) < 0) return;
     if (PyType_Ready(&tactmod_FastaIterType) < 0) return;

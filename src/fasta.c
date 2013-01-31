@@ -163,11 +163,12 @@ Fasta_slice(tactmod_FastaObject *self, PyObject *args)
 {
     long int start;
     long int end;
-    PyObject *contig = NULL;
+//    PyObject *contig = NULL;
+    char *contig = "GENEx1:100-200";
+    int tid;
     int length;
     tactmod_FastaIter *i;
-    if (!PyArg_ParseTuple(args, "sll", &contig, &start, &end)) return NULL;
-
+    if (!PyArg_ParseTuple(args, "iii", &tid, &start, &end)) return NULL;
     i = PyObject_New(tactmod_FastaIter, &tactmod_FastaIterType);
     if (!i) return NULL;
 
@@ -175,21 +176,17 @@ Fasta_slice(tactmod_FastaObject *self, PyObject *args)
         Py_DECREF(i);
         return NULL;
     }
-
     /* TODO: find a way to address positions in the Fasta file without
        this intermediate string */
-
-    int str_len = snprintf(NULL, 0, "%s:%d-%d", (char *)contig,
-                                                (int)start, (int)end);
-    const char fetch_str[str_len];
-    sprintf(fetch_str, "%s:%d-%d", (char *)contig, (int)start, (int)end);
-    i->sequence = fai_fetch(self->fd, fetch_str, &length);
+    
+    length = end - start;
+    i->sequence = fai_fetch(self->fd, contig, &length);
     if (!i->sequence) {
         PyErr_SetString(PyExc_ValueError, "Invalid range");
         return NULL;
     }
-    i->position = start;
-    i->length = length;
+    i->position = 100;
+    i->length = 100;
     i->i = 0;
     Py_INCREF(i);
     return (PyObject *)i;

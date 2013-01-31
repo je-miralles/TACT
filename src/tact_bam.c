@@ -210,7 +210,8 @@ fetch_column(const bam1_t *b, void *data) {
     uint32_t op;
     uint32_t matches;
 
-    d->pileup->position = b->core.pos;
+    //d->pileup->position = b->core.pos;
+    //d->position = b->core.pos
     if (1) {
     //if (d->populate_bases) {
         ops = b->core.n_cigar;
@@ -239,7 +240,6 @@ fetch_column(const bam1_t *b, void *data) {
         //read_base->phred = p[offset];    
         d->pileup->depth += 1;
         PyList_Append(d->pileup->bases, (PyObject*)read_base);
-
         if (read_base == (PyObject*)tact_A) {
             d->pileup->base_counts[0]++;
         } else if (read_base == (PyObject*)tact_C) {
