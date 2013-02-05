@@ -8,6 +8,7 @@ typedef struct {
     PyObject_HEAD
     long int position;
     PyObject *contig;
+    PyObject *contigs;
     faidx_t *fd;
 } tactmod_FastaObject;
 

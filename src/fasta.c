@@ -15,6 +15,7 @@ PyMethodDef Fasta_methods[] = {
 
 PyMemberDef Fasta_members[] = {
     {"contig", T_OBJECT_EX, offsetof(tactmod_FastaObject, contig), 0, "name"},
+    {"contigs", T_OBJECT_EX, offsetof(PyObject, contigs), 0, "contigs"},
     {NULL}
 };
 
@@ -104,6 +105,7 @@ Fasta_new(PyTypeObject *type, PyObject *args, PyObject *kwds)
         self->position = 0;
         self->fd = NULL;
     }
+//    self->contigs = Py_
     return (PyObject *)self;
 }
 
@@ -133,17 +135,16 @@ Fasta_jump(tactmod_FastaObject *self, PyObject *args)
     char b;
     PyObject *contig = NULL;
 
-    if (!PyArg_ParseTuple(args, "si", &contig, &start)) {
-        return NULL;
-    }
+    if (!PyArg_ParseTuple(args, "s", &contig)) return NULL; 
+
     self->position = start;
     //self->contig = contig
     int end = start;
 
-    int str_len = snprintf(NULL, 0, "%s:%d-%d", (char *)contig, start, end);
-    const char fetch_str[str_len];
-    sprintf(fetch_str, "%s:%d-%d", (char *)contig, start, end);
-    s = fai_fetch(self->fd, fetch_str, &l);
+//    int str_len = snprintf(NULL, 0, "%s:%d-%d", (char *)contig, start, end);
+//    const char fetch_str[str_len];
+//    sprintf(fetch_str, "%s:%d-%d", (char *)contig, start, end);
+    s = fai_fetch(self->fd, contig, &l);
     if (s == NULL) {
         PyErr_SetString(PyExc_ValueError, "Contig does not exist");
         return NULL;
@@ -163,12 +164,11 @@ Fasta_slice(tactmod_FastaObject *self, PyObject *args)
 {
     long int start;
     long int end;
-//    PyObject *contig = NULL;
-    char *contig = "GENEx1:100-200";
+    char *contig = NULL;
     int tid;
     int length;
     tactmod_FastaIter *i;
-    if (!PyArg_ParseTuple(args, "iii", &tid, &start, &end)) return NULL;
+    if (!PyArg_ParseTuple(args, "s", &contig)) return NULL;
     i = PyObject_New(tactmod_FastaIter, &tactmod_FastaIterType);
     if (!i) return NULL;
 
