@@ -9,15 +9,13 @@
  */
 
 PyMethodDef Bam_methods[] = {
-    {"jump", (PyCFunction)Bam_jump, METH_VARARGS, "jump to a position"},
-    {"slice", (PyCFunction)Bam_slice, METH_VARARGS, "slice a range"},
-    {"stats", (PyCFunction)Bam_stats, METH_VARARGS, "return only stats"},
+    {"column", (PyCFunction)Bam_column, METH_VARARGS, "columns covering a range"},
+    {"pileup", (PyCFunction)Bam_pileup, METH_VARARGS, "pileups covering a range"},
+    {"tuples", (PyCFunction)Bam_tuple, METH_VARARGS, "fixed size tuples"},
     {NULL}
 };
 
 PyMemberDef Bam_members[] = {
-    {"column_callback", T_OBJECT_EX, offsetof(tactmod_BamObject,
-                column_callback), 0, "pileup column callback function"},
     {NULL}
 };
 
