@@ -8,7 +8,8 @@
  * associated information
  */
 
-typedef uint8_t base;
+typedef uint8_t base4_t;
+typedef uint8_t base2_t;
 
 typedef struct {
     PyObject_HEAD
@@ -31,8 +32,8 @@ PyObject *Base__eq__(tactmod_BaseObject *self, PyObject *other);
 PyObject *Base_cmp(PyObject *self, PyObject *other, int op);
 
 tactmod_BaseObject *chartobase(char b);
-char basetochar(tactmod_BaseObject *b);
-char inttochar(uint8_t b);
+char base_char(tactmod_BaseObject *b);
+char int_char(base4_t b);
 
 PyObject *Base_str(tactmod_BaseObject *self);
 PyObject *Base_print(tactmod_BaseObject *self, FILE *fp, int flags);

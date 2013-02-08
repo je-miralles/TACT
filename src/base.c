@@ -14,7 +14,7 @@ PyMemberDef Base_members[] = {
 };
 
 tactmod_BaseObject*
-chartobase(char base)
+char_base(char base)
 {
     switch(base) {
         case 'A': case 'a':
@@ -48,8 +48,8 @@ chartobase(char base)
     return Py_None;
 }
 
-uint8_t
-base4_base2(uint8_t base) {
+base2_t
+base4_base2(base4_t base) {
     switch(base) {
         case 0x1:
             return 0x0;
@@ -61,8 +61,9 @@ base4_base2(uint8_t base) {
             return 0x3;
     }
 }
+
 PyObject*
-complement(tactmod_BaseObject* b)
+complement_b(tactmod_BaseObject* b)
 {
     switch(b->nucleotides) {
         case 0x02:
@@ -79,7 +80,7 @@ complement(tactmod_BaseObject* b)
 }
 
 char
-inttochar(uint8_t b)
+base4_char(base4_t b)
 {
     switch(b) {
         case 0x01:
@@ -97,7 +98,7 @@ inttochar(uint8_t b)
 }
 
 char
-basetochar(tactmod_BaseObject *b)
+base_char(tactmod_BaseObject *b)
 {
     return inttochar(b->nucleotides);
 }
