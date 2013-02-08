@@ -37,6 +37,8 @@ char inttochar(uint8_t b);
 PyObject *Base_str(tactmod_BaseObject *self);
 PyObject *Base_print(tactmod_BaseObject *self, FILE *fp, int flags);
 
+uint8_t base4_base2(uint8_t base);
+
 PyMethodDef Base_methods[];
 PyMemberDef Base_members[];
 PyTypeObject tactmod_BaseType;

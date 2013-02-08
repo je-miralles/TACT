@@ -11,7 +11,7 @@
 PyMethodDef Bam_methods[] = {
     {"jump", (PyCFunction)Bam_jump, METH_VARARGS, "jump to a position"},
     {"slice", (PyCFunction)Bam_slice, METH_VARARGS, "slice a range"},
-
+    {"stats", (PyCFunction)Bam_stats, METH_VARARGS, "return only stats"},
     {NULL}
 };
 
@@ -61,27 +61,50 @@ tactmod_BamIter_next(PyObject *self) {
     int end;
     int status;
     int tid;
-    pileup_buffer buffer;
+    int i, j;
+//    pileup_buffer buffer;
     tactmod_BamIter *iterator = (tactmod_BamIter *)self; 
     tactmod_BamObject *bam = iterator->bam;
+    PyTupleObject *tuple;
+    PyTupleObject *features;
+    PyIntObject *value;
     while((iterator->position) < iterator->stop) {
+        tuple = PyTuple_New(5);
+        Py_INCREF(tuple);
+        
+        value = PyInt_FromLong(iterator->position);
+        Py_INCREF(value);
+        PyTuple_SET_ITEM(tuple, 0, value); 
+
+        for (i = 1; i < 5; i++) {
+            features = PyTuple_New(4);
+            Py_INCREF(features);
+            value = PyInt_FromLong(0);
+            Py_INCREF(value);
+            for (j = 0; j < 4; j++) {
+                PyTuple_SET_ITEM(features, j, value);
+            }
+            PyTuple_SET_ITEM(tuple, i, features);
+        }
+
         start = iterator->position + 1;
-        PyObject *arglist = Py_BuildValue("(i)", start);
-        buffer.pileup = PyObject_CallObject((PyObject*)&tactmod_ColumnType,
-                                        arglist);
-        buffer.depth = 0;
-        buffer.buf = bam_plbuf_init(pileup_func, buffer.pileup);
-        iterator->position = buffer.pileup->position;
+//        PyObject *arglist = Py_BuildValue("(i)", start);
+//        buffer.pileup = PyObject_CallObject((PyObject*)&tactmod_ColumnType,
+//                                        arglist);
+//        buffer.depth = 0;
+//        buffer.buf = bam_plbuf_init(pileup_func, buffer.pileup);
+//        iterator->position = buffer.pileup->position;
+        iterator->position++;
         end = start + 1;
         tid = 0;
         status = bam_fetch(bam->fd->x.bam, bam->idx, tid,
-                       start, end, &buffer, fetch_column);
-        bam_plbuf_push(0, buffer.buf);
-        bam_plbuf_destroy(buffer.buf);
-        if (buffer.pileup->depth == 0) {
-            continue;
-        }
-        return buffer.pileup;
+                       start, end, tuple, fetch_stats);
+//        bam_plbuf_push(0, buffer.buf);
+//        bam_plbuf_destroy(buffer.buf);
+//        if (buffer.pileup->depth == 0) {
+//            continue;
+//        }
+        return tuple;
     }
 
     PyErr_SetNone(PyExc_StopIteration);
@@ -198,6 +221,22 @@ Bam_slice(tactmod_BamObject *self, PyObject *args) {
     return (PyObject *)iter;
 }
 
+PyObject *
+Bam_stats(tactmod_BamObject *self, PyObject *args) {
+    tactmod_BamIter *iter;
+    int tid, start, stop;
+    
+    if (!PyArg_ParseTuple(args, "iii", &tid, &start, &stop)) return NULL;
+
+    iter = (tactmod_BamIter *)PyObject_New(tactmod_BamIter, &tactmod_BamIterType);
+    Py_INCREF(iter); 
+    iter->bam = self;
+    iter->offset = 0;
+    iter->position = start;
+    iter->stop = stop;
+    return (PyObject *)iter;
+}
+
 static int
 fetch_column(const bam1_t *b, void *data) {
     int i;
@@ -218,6 +257,7 @@ fetch_column(const bam1_t *b, void *data) {
         op = bam1_cigar(b)[1] & 0xF;
         matches = 0;
 
+        // THIS DOESNT WORK
         for(i = 0; i < ops; i++) {
             op = bam1_cigar(b)[i] & 0xF;
             if (op == BAM_CMATCH) {
@@ -258,6 +298,54 @@ fetch_column(const bam1_t *b, void *data) {
         Py_INCREF(count);
         PyTuple_SET_ITEM(d->pileup->counts, i, count);
     }
+    return 0;
+}
+
+static int
+fetch_stats(const bam1_t *b, void *data) {
+    int i;
+//    uint8_t offset = d->pileup->position - b->core.pos;
+    uint8_t offset;
+    uint8_t quality, mapping, baq, mapped, reverse, paired, duplicate;
+    uint8_t base2;
+    long position;
+    long old_value;
+    PyTupleObject *features;
+    PyTupleObject *tuple;
+    PyIntObject *value; 
+   
+    tuple = (PyTupleObject *)data;
+    //ops = b->core.n_cigar;
+    position = PyInt_AS_LONG(PyTuple_GET_ITEM(tuple, 0));
+    offset = position - b->core.pos;
+    
+    base2 = base4_base2(bam1_seqi(bam1_seq(b), offset));
+    if (base2 > 3) {
+        return 1;
+    }
+    features = PyTuple_GET_ITEM(tuple, (base2 + 1));
+    
+    value = PyTuple_GET_ITEM(features, 0);
+    old_value = PyInt_AS_LONG(value);
+    value = PyInt_FromLong(old_value++);
+    Py_INCREF(value);
+    PyTuple_SET_ITEM(features, TOTAL_INDEX, value);
+
+    old_value = PyInt_AS_LONG(PyTuple_GET_ITEM(features, QUALITY_INDEX));
+    value = PyInt_FromLong(bam1_qual(b)[offset] + old_value);
+    Py_INCREF(value);
+    PyTuple_SET_ITEM(features, QUALITY_INDEX, value);
+    
+    old_value = PyInt_AS_LONG(PyTuple_GET_ITEM(features, DIRECTION_INDEX));
+    value = PyInt_FromLong(old_value + b->core.flag & BAM_FREVERSE);
+    Py_INCREF(value);
+    PyTuple_SET_ITEM(features, DIRECTION_INDEX, value);  
+    
+    old_value = PyInt_AS_LONG(PyTuple_GET_ITEM(features, MAPPING_INDEX));
+    value = PyInt_FromLong(old_value + b->core.qual);
+    Py_INCREF(value);
+    PyTuple_SET_ITEM(features, MAPPING_INDEX, value);
+
     return 0;
 }
 

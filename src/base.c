@@ -48,6 +48,19 @@ chartobase(char base)
     return Py_None;
 }
 
+uint8_t
+base4_base2(uint8_t base) {
+    switch(base) {
+        case 0x1:
+            return 0x0;
+        case 0x2:
+            return 0x1;
+        case 0x4:
+            return 0x2;
+        case 0x8:
+            return 0x3;
+    }
+}
 PyObject*
 complement(tactmod_BaseObject* b)
 {

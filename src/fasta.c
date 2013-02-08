@@ -15,7 +15,7 @@ PyMethodDef Fasta_methods[] = {
 
 PyMemberDef Fasta_members[] = {
     {"contig", T_OBJECT_EX, offsetof(tactmod_FastaObject, contig), 0, "name"},
-    {"contigs", T_OBJECT_EX, offsetof(PyObject, contigs), 0, "contigs"},
+//    {"contigs", T_OBJECT_EX, offsetof(PyObject, contigs), 0, "contigs"},
     {NULL}
 };
 
