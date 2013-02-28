@@ -7,8 +7,10 @@ samtools = ['samtools/kstring.c','samtools/sam_header.c','samtools/razf.c',
             'samtools/bam_md.c','samtools/errmod.c']
 
 tactmod = Extension('tactmod',
-        sources = samtools + ['src/base.c','src/column.c','src/fasta.c','src/tact_bam.c',
-                   'src/tactmod_init.c', 'src/tact_fastq.c', 'src/tact_vcf.c', 'src/multiseq.c'],
+        sources = samtools + ['src/base.c','src/column.c','src/fasta.c',
+                              'src/tact_bam.c','src/tactmod_init.c',
+                              'src/tact_fastq.c', 'src/tact_vcf.c',
+                              'src/multiseq.c'],
 
         library_dirs = [],
         include_dirs = ['samtools/','samtools/bcftools','include/samtools'],
