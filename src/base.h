@@ -13,7 +13,7 @@ typedef uint8_t base2_t;
 
 typedef struct {
     PyObject_HEAD
-    base nucleotides;
+    base4_t nucleotides;
 } tactmod_BaseObject;
 
 tactmod_BaseObject *tact_Del;

@@ -9,9 +9,12 @@
  */
 
 PyMethodDef Bam_methods[] = {
-    {"column", (PyCFunction)Bam_column, METH_VARARGS, "columns covering a range"},
-    {"pileup", (PyCFunction)Bam_pileup, METH_VARARGS, "pileups covering a range"},
-    {"tuples", (PyCFunction)Bam_tuple, METH_VARARGS, "fixed size tuples"},
+    {"column", (PyCFunction)Bam_slice, METH_VARARGS,
+                "columns covering a range"},
+    {"pileup", (PyCFunction)Bam_pileup, METH_VARARGS,
+                "pileups covering a range"},
+    {"tuples", (PyCFunction)Bam_tuple, METH_VARARGS,
+                "fixed size tuples"},
     {NULL}
 };
 
@@ -208,10 +211,12 @@ Bam_slice(tactmod_BamObject *self, PyObject *args) {
     PyObject *contig;
     buffer.filter = NULL;
     buffer.populate_bases = 1;
-    if (!PyArg_ParseTuple(args, "iii|O", &tid, &start, &stop, &buffer.filter)) {
+    if (!PyArg_ParseTuple(args, "iii|O", &tid, &start, &stop, &buffer.filter)) 
+    {
         return NULL;
     }
-    iter = (tactmod_BamIter *)PyObject_New(tactmod_BamIter, &tactmod_BamIterType);
+    iter = (tactmod_BamIter *)PyObject_New(tactmod_BamIter, 
+                                           &tactmod_BamIterType);
     iter->bam = self;
     iter->offset = 0;
     iter->position = start;
@@ -226,7 +231,8 @@ Bam_stats(tactmod_BamObject *self, PyObject *args) {
     
     if (!PyArg_ParseTuple(args, "iii", &tid, &start, &stop)) return NULL;
 
-    iter = (tactmod_BamIter *)PyObject_New(tactmod_BamIter, &tactmod_BamIterType);
+    iter = (tactmod_BamIter *)PyObject_New(tactmod_BamIter,
+                                           &tactmod_BamIterType);
     Py_INCREF(iter); 
     iter->bam = self;
     iter->offset = 0;
