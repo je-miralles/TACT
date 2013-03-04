@@ -9,11 +9,11 @@
  */
 
 PyMethodDef Bam_methods[] = {
-    {"column", (PyCFunction)Bam_slice, METH_VARARGS,
-                "columns covering a range"},
-    {"pileup", (PyCFunction)Bam_pileup, METH_VARARGS,
-                "pileups covering a range"},
-    {"tuples", (PyCFunction)Bam_tuple, METH_VARARGS,
+//    {"column", (PyCFunction)Bam_slice, METH_VARARGS,
+//                "columns covering a range"},
+//    {"pileup", (PyCFunction)Bam_pileup, METH_VARARGS,
+//                "pileups covering a range"},
+    {"tuple", (PyCFunction)Bam_tuple, METH_VARARGS,
                 "fixed size tuples"},
     {NULL}
 };
@@ -153,6 +153,12 @@ Bam_init(tactmod_BamObject *self, PyObject *args, PyObject *kwds) {
     }
 }
 
+
+PyObject *
+Bam_tuple(tactmod_BamObject *self, PyObject *args) {
+    return NULL;
+}
+
 PyObject *
 Bam_jump(tactmod_BamObject *self, PyObject *args) {
     int start, end, tid, status; 
@@ -278,7 +284,7 @@ fetch_column(const bam1_t *b, void *data) {
                 }
             }
         }
-        read_base = chartobase(inttochar(bam1_seqi(bam1_seq(b),offset)));
+        read_base = char_base(base4_char(bam1_seqi(bam1_seq(b),offset)));
         //tactmod_ReadBaseObject *read_base = int2base(bam1_seqi(bam1_s
         p = bam1_qual(b);
         //read_base->phred = p[offset];    

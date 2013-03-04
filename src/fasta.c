@@ -71,7 +71,7 @@ tactmod_FastaIter_next(PyObject *self)
 {
     tactmod_FastaIter *iter = (tactmod_FastaIter *) self;
     if (iter->i < iter->length) {
-        PyObject *t = chartobase(iter->sequence[iter->i]);
+        PyObject *t = char_base(iter->sequence[iter->i]);
         (iter->i)++;
         iter->position++;
         return t;
@@ -156,7 +156,7 @@ Fasta_jump(tactmod_FastaObject *self, PyObject *args)
 
     b = s[0];
     free(s);
-    return chartobase(b);
+    return char_base(b);
 }
 
 PyObject *

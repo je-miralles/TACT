@@ -100,7 +100,7 @@ base4_char(base4_t b)
 char
 base_char(tactmod_BaseObject *b)
 {
-    return inttochar(b->nucleotides);
+    return base4_char(b->nucleotides);
 }
 
 PyTypeObject tactmod_BaseType = {
@@ -131,13 +131,13 @@ PyTypeObject tactmod_BaseType = {
 PyObject *
 Base_str(tactmod_BaseObject *self)
 {
-    return PyString_FromFormat("%c", basetochar(self->nucleotides));
+    return PyString_FromFormat("%c", base4_char(self->nucleotides));
 }
 
 PyObject *
 Base_print(tactmod_BaseObject *self, FILE *fp, int flags)
 {
-    fprintf(fp, "%c", basetochar(self));
+    fprintf(fp, "%c", base_char(self));
     return 0;
 }
 
