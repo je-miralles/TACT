@@ -51,6 +51,20 @@ PyMethodDef Bam_methods[];
 PyMemberDef Bam_members[];
 PyTypeObject tactmod_BamType;
 
+typedef struct {
+    void *next;
+    uint32_t position;
+    PyObject *content;
+} queue_node;
+
+typedef struct {
+    uint32_t size;
+    uint32_t end;
+    uint32_t position;
+    queue_node *head;
+    queue_node *tail;
+} queue;
+
 // The iterator
 typedef struct {
     PyObject_HEAD
@@ -60,20 +74,8 @@ typedef struct {
     uint32_t stop;
     tactmod_BamObject *bam;
     bam_plbuf_t *pileup;
-    PyListObject *buffer; // the buffer linked list
+    queue *buffer; // the buffer linked list
 } tactmod_BamIter;
-
-typedef struct {
-    void *next;
-    PyObject *content;
-} buffer_node;
-
-typedef struct {
-    uint32_t size;
-    uint32_t end;
-    buffer_node *head;
-    buffer_node *tail;
-} buffer_ll;
 
 
 PyObject *tactmod_BamIter_iter(PyObject *self);
@@ -92,8 +94,8 @@ static int fetch_f(const bam1_t *b, void *data);
 static int pileup_func(uint32_t tid, uint32_t pos, int n,
                        const bam_pileup1_t *pl, void *data);
 
-int ll_push(buffer_ll *list, PyTupleObject *content);
-PyTupleObject *ll_pop(buffer_ll *list);
-int ll_init(buffer_ll *list);
-int ll_destroy(buffer_ll *list);
+int enqueue(queue *list, PyTupleObject *content, uint32_t pos);
+PyTupleObject *dequeue(queue *list);
+queue *queue_init(void);
+int queue_destroy(queue *list);
 #endif
