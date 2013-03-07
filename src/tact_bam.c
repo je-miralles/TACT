@@ -67,6 +67,7 @@ tactmod_BamIter_next(PyObject *self) {
     int status;
     int tid;
     int i, j;
+    int loop = 1;
 //    pileup_buffer buffer;
     tactmod_BamIter *iterator = (tactmod_BamIter *)self; 
     tactmod_BamObject *bam = iterator->bam;
@@ -76,7 +77,7 @@ tactmod_BamIter_next(PyObject *self) {
     PyIntObject *value;
     queue *buffer = iterator->buffer;
 
-    trace("--\t(%d)\tsize:\t%d\t%d", iterator->position, buffer->size, buffer->end);
+    //trace("--\t(%d)\tsize:\t%d\t%d", iterator->position, buffer->size, buffer->end);
     // fall of the end
     if (iterator->position >= iterator->stop) {
         trace("end of range");
@@ -89,16 +90,26 @@ tactmod_BamIter_next(PyObject *self) {
     }
 
     while ((iterator->position >= buffer->end) || (buffer->size == 0)) {
-        trace("replenishing buffer");
+        trace("replenishing buffer %d", buffer->end);
+        if (buffer->end > 0) {
+            start = buffer->end;
+        }
+        else {
+            start = iterator->start;
+        }
 
-         bam_fetch(bam->fd->x.bam, bam->idx, 0,
-                  8500, 9500, (void *)self, fetch_f);
+        queue_destroy(buffer);
+        buffer = queue_init();
+        bam_fetch(bam->fd->x.bam, bam->idx, 0,
+                  start, start + (100000 * loop), (void *)self, fetch_f);
         // top off the buffer (as per samtools doc)
         bam_plbuf_push(NULL, pileup);
         bam_plbuf_reset(pileup);
+        loop++;
     }
-    
+    iterator->buffer = buffer; 
     tuple = dequeue(buffer);
+//    Py_CLEAR(tuple);
     iterator->position = buffer->position;
     return tuple;
 
@@ -120,7 +131,7 @@ Bam_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     if (self != NULL) {
         self->contig = PyString_FromString("");
         if (self->contig == NULL) {
-            Py_DECREF(self);
+            Py_CLEAR(self);
             return NULL;
         }
         self->fd = NULL;
@@ -326,28 +337,22 @@ static int
 pileup_func(uint32_t tid, uint32_t pos, int n,
             const bam_pileup1_t *pl, void *data) {
     
-    // Create the tuple to to returned for every position in the range
+    // Create the tuple to be returned for every position in the range
     tactmod_BamIter *iterator = (tactmod_BamIter *)data;
     PyTupleObject *tuple;
     PyTupleObject *features;
     PyIntObject *value;
     int start, end;
     queue *buffer = iterator->buffer;
-//    if ((iterator->buffer_start) > pos) {
-//        iterator->buffer_start = pos;
-//    }
-    //iterator->buffer_pos = pos;
     int i, j;
-//    if ((pos < iterator->buffer_start) || (pos > iterator->buffer_end)) {
-//        return 0;
-//    }
-//    trace("building position for %d", pos);
-//    iterator->position = pos; 
+    if ((pos < iterator->start) || (pos > iterator->stop)) {
+        return 0;
+    }
     tuple = PyTuple_New(6);
     Py_INCREF(tuple);
         
     value = PyInt_FromLong(pos);
-    Py_INCREF(value);
+//    Py_INCREF(value);
     if (1) {
         PyTuple_SET_ITEM(tuple, POSITION, value); 
         value = PyInt_FromLong(n);
@@ -356,7 +361,7 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
             features = PyTuple_New(5);
             Py_INCREF(features);
             value = PyInt_FromLong(0);
-            Py_INCREF(value);
+//            Py_INCREF(value);
             for (j = 0; j < 5; j++) {
                 PyTuple_SET_ITEM(features, j, value);
             }
@@ -367,7 +372,7 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     
     enqueue(buffer, tuple, pos);
     buffer->end = pos;
-    trace("buffer size:\t%d", buffer->size);
+//    trace("buffer size:\t%d", buffer->size);
 //    PyList_Append(buffer, (PyObject *)tuple);
     return 0;
 }
@@ -407,7 +412,6 @@ PyTupleObject *dequeue(queue *list) {
     return content;
 }
 queue *queue_init(void) {
-    trace("initializing fifo buffer");
     queue *buffer;
     buffer = (queue *)malloc(sizeof(queue));
     buffer->size = 0;
@@ -419,10 +423,11 @@ queue *queue_init(void) {
 
 int queue_destroy(queue *list) {
     trace("destroying linked list");
+    PyObject *item;
     while(list->size > 0) {
-        Py_DECREF(dequeue(list));
+        item = dequeue(list);
+        Py_CLEAR(item);
     }
-    printf("\ndone %d", list->size);
     free(list);
     return 0;
 }
