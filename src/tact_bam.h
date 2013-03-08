@@ -52,9 +52,16 @@ PyMemberDef Bam_members[];
 PyTypeObject tactmod_BamType;
 
 typedef struct {
+    uint32_t position;
+    uint16_t bases[4][6];
+    uint16_t features[4];
+    uint16_t features_f[2];
+} column_t;
+
+typedef struct {
     void *next;
     uint32_t position;
-    PyObject *content;
+    column_t *content;
 } queue_node;
 
 typedef struct {
@@ -94,8 +101,8 @@ static int fetch_f(const bam1_t *b, void *data);
 static int pileup_func(uint32_t tid, uint32_t pos, int n,
                        const bam_pileup1_t *pl, void *data);
 
-int enqueue(queue *list, PyTupleObject *content, uint32_t pos);
-PyTupleObject *dequeue(queue *list);
+int enqueue(queue *list, column_t *content, uint32_t pos);
+column_t *dequeue(queue *list);
 queue *queue_init(void);
 int queue_destroy(queue *list);
 #endif
