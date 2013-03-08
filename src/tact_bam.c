@@ -56,6 +56,7 @@ tactmod_BamIter_iter(PyObject *self) {
     tactmod_BamIter *s = (tactmod_BamIter *)self;
     s->buffer = queue_init();
     Py_INCREF(self);
+    // Check for the rightmost limit of this contig
     return self;
 }
 
@@ -67,6 +68,7 @@ tactmod_BamIter_next(PyObject *self) {
     int tid;
     int i, j;
     int loop = 1;
+    uint32_t stop = 0;
 //    pileup_buffer buffer;
     tactmod_BamIter *iterator = (tactmod_BamIter *)self; 
     tactmod_BamObject *bam = iterator->bam;
@@ -84,21 +86,27 @@ tactmod_BamIter_next(PyObject *self) {
         return NULL;
     }
 
-    while ((iterator->position >= buffer->end) || (buffer->size == 0)) {
+    while (((iterator->position >= buffer->end) || (buffer->size == 0)) &&
+           (buffer->end < iterator->stop)) {
         if (buffer->end > 0) {
             start = buffer->end;
         }
         else {
             start = iterator->start;
         }
-
+        
+        stop = start + (100000 * loop);
+        if (iterator->stop < stop) {
+            stop = iterator->stop;
+        }
         queue_destroy(buffer);
         buffer = queue_init();
 
+        //trace("buffering region %d - %d", start, stop);
         pileup = bam_plbuf_init(pileup_func, iterator);
         iterator->pileup = pileup;
         bam_fetch(bam->fd->x.bam, bam->idx, 0,
-                  start, start + (100000 * loop), (void *)iterator, fetch_f);
+                  start, stop, (void *)iterator, fetch_f);
 
         // top off the buffer (as per samtools doc)
         bam_plbuf_push(NULL, pileup);
@@ -107,13 +115,15 @@ tactmod_BamIter_next(PyObject *self) {
     }
 
     iterator->buffer = buffer; 
-    tuple = dequeue(buffer);
-//    Py_CLEAR(tuple);
-//    tuple = Py_None;
-//    Py_INCREF(tuple);
-    iterator->position = buffer->position;
-    return tuple;
+    if (buffer->size > 0) {
+        tuple = dequeue(buffer);
+        iterator->position = buffer->position;
+        return tuple;
+    }
 
+    queue_destroy(buffer);
+    PyErr_SetNone(PyExc_StopIteration);
+    return NULL;
 }
 
 void
@@ -121,7 +131,7 @@ Bam_dealloc(tactmod_BamObject *self) {
     bam_index_destroy(self->idx);
     samclose(self->fd);
     //Py_XDECREF(self->text);
-    Py_XDECREF(self->contig);
+    Py_(self->contig);
     self->ob_type->tp_free((PyObject*)self);
 }
 
