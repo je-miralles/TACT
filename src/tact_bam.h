@@ -67,6 +67,8 @@ typedef struct {
 
 typedef struct {
     uint32_t size;
+    uint32_t fetch_start;
+    uint32_t fetch_stop;
     uint32_t end;
     uint32_t position;
     queue_node *head;

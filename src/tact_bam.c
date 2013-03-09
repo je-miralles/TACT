@@ -62,8 +62,8 @@ tactmod_BamIter_iter(PyObject *self) {
 
 PyObject *
 tactmod_BamIter_next(PyObject *self) {
-    int start;
-    int end;
+    uint32_t start;
+    uint32_t end;
     int status;
     int tid;
     int i, j;
@@ -77,7 +77,7 @@ tactmod_BamIter_next(PyObject *self) {
     PyTupleObject *features;
     PyIntObject *value;
     queue *buffer = iterator->buffer;
-    column_t *column;
+    column_t column;
     // fall of the end
     if (iterator->position >= iterator->stop) {
         queue_destroy(buffer);
@@ -87,16 +87,24 @@ tactmod_BamIter_next(PyObject *self) {
 
     while (((iterator->position >= buffer->end) || (buffer->size == 0)) &&
            (buffer->end < iterator->stop)) {
-        
-        start = iterator->start;
-        
-        start = (BUFFER_SIZE * loop);
- //       loop = 1;
+      
+        if (buffer->position == 0) {
+            start = iterator->start;
+        } else {
+            start = buffer->end;
+        }
+
         stop = start + BUFFER_SIZE;
+
+        if (stop > iterator->stop) {
+            stop = iterator->stop;
+        }
 
         queue_destroy(buffer);
         buffer = queue_init();
-
+        buffer->fetch_start = start;
+        buffer->fetch_stop = stop;
+        trace("buffering %d - %d", start, stop);
         pileup = bam_plbuf_init(pileup_func, iterator);
         iterator->pileup = pileup;
         bam_fetch(bam->fd->x.bam, bam->idx, 0,
@@ -111,10 +119,12 @@ tactmod_BamIter_next(PyObject *self) {
 //    
     column = dequeue(buffer);
     iterator->buffer = buffer; 
-    tuple = PyTuple_New(2);
-    PyTuple_SET_ITEM(tuple, 0, Py_None);
-    PyTuple_SET_ITEM(tuple, 1, Py_None);
-//        tuple = Py_None;
+    iterator->position = column.position;
+//    trace("%d", iterator->position);
+//    tuple = PyTuple_New(2);
+//    PyTuple_SET_ITEM(tuple, 0, Py_None);
+//    PyTuple_SET_ITEM(tuple, 1, Py_None);
+        tuple = Py_None;
     Py_INCREF(tuple);
         
     return tuple;
@@ -218,9 +228,9 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     int start, end;
     queue *buffer = iterator->buffer;
     int i, j;
-//    if ((pos < iterator->start) || (pos > iterator->stop)) {
-//        return 0;
-//    }
+    if ((pos < buffer->fetch_start) || (pos > buffer->fetch_stop)) {
+        return 0;
+    }
     if (0) {
         PyTuple_SET_ITEM(tuple, POSITION, value); 
         value = PyInt_FromLong(n);
