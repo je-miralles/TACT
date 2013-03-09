@@ -120,6 +120,9 @@ tactmod_BamIter_next(PyObject *self) {
     column = dequeue(buffer);
     iterator->buffer = buffer; 
     iterator->position = column.position;
+    if (column.features[0] > 20) {
+        trace("lots of reverse strands");
+    }
 //    trace("%d", iterator->position);
 //    tuple = PyTuple_New(2);
 //    PyTuple_SET_ITEM(tuple, 0, Py_None);
@@ -219,83 +222,44 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     bam1_t *b;
     bam_pileup1_t alignment;
 
-    // Create the tuple to be returned for every position in the range
     tactmod_BamIter *iterator = (tactmod_BamIter *)data;
-    PyTupleObject *tuple;
-    PyTupleObject *features;
+
     column_t column;
-    PyIntObject *value;
     int start, end;
     queue *buffer = iterator->buffer;
     int i, j;
     if ((pos < buffer->fetch_start) || (pos > buffer->fetch_stop)) {
         return 0;
     }
-    if (0) {
-        PyTuple_SET_ITEM(tuple, POSITION, value); 
-        value = PyInt_FromLong(n);
-        PyTuple_SET_ITEM(tuple, 5, value);
-        for (i = 0; i < 4; i++) {
-            features = PyTuple_New(5);
-            for (j = 0; j < 5; j++) {
-                value = PyInt_FromLong(0);
-                PyTuple_SET_ITEM(features, j, value);
-            }
-            PyTuple_SET_ITEM(tuple, i, features);
-        }
+        //
+    column.features[0] = 0;
+    if (1) {
+    for (i = 0; i < n; i++) {
         // append tuple to list
         length = 100; 
         //ops = b->core.n_cigar;
-
-        for (i = 0; i < n; i++) {
-            
             alignment = pl[i];
             b = alignment.b;
-            if ((pos - b->core.pos) < 0) {
-                exit(1);
-            }
 
             offset = pos - b->core.pos;
-    
             base2 = base4_base2(bam1_seqi(bam1_seq(b), offset));
 
             if (base2 > 3) {
                 return 1;
             }
-            features = PyTuple_GET_ITEM(tuple, base2);
-    
             reverse = 1 && (b->core.flag & BAM_FREVERSE);
-            old_value = PyInt_AS_LONG(PyTuple_GET_ITEM(features, TOTAL_INDEX));
-            value = PyInt_FromLong(old_value + 1);
-//            Py_INCREF(value);
-            PyTuple_SET_ITEM(features, TOTAL_INDEX, value);
     
-            old_value = PyInt_AS_LONG(PyTuple_GET_ITEM(features, QUALITY_INDEX));
-            value = PyInt_FromLong(bam1_qual(b)[offset] + old_value);
-//            Py_INCREF(value);
-            PyTuple_SET_ITEM(features, QUALITY_INDEX, value);
-    
-            old_value = PyInt_AS_LONG(PyTuple_GET_ITEM(features, DIRECTION_INDEX));
-            value = PyInt_FromLong(old_value + reverse);
-//            Py_INCREF(value);
-            PyTuple_SET_ITEM(features, DIRECTION_INDEX, value);  
-    
-            old_value = PyInt_AS_LONG(PyTuple_GET_ITEM(features, MAPPING_INDEX));
-            value = PyInt_FromLong(old_value + b->core.qual);
-//            Py_INCREF(value);
-            PyTuple_SET_ITEM(features, MAPPING_INDEX, value);
+            quality = bam1_qual(b)[offset];
+            column.features[0] += reverse;    
+            mapping = b->core.qual;
 
-            old_value = PyInt_AS_LONG(PyTuple_GET_ITEM(features, TAIL_DISTANCE));
+            distance = 0;
             if (reverse) {
                 distance = length - offset;
             } else {
                 distance = offset;
             }
-            value = PyInt_FromLong(distance + old_value);
-//            Py_INCREF(value);
-            PyTuple_SET_ITEM(features, TAIL_DISTANCE, value);
-    
-        }
+    } 
     }
 //    column = malloc(sizeof(column));
     column.position = pos;
