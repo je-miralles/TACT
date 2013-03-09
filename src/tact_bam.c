@@ -1,8 +1,8 @@
 #include <Python.h>
 #include <sam.h>
+#include <stdlib.h>
 #include "structmember.h"
 #include "tact_bam.h"
-
 /* 
  * tact_bam.c serves as a driver for the samtools bam library
  *
@@ -78,7 +78,6 @@ tactmod_BamIter_next(PyObject *self) {
     PyIntObject *value;
     queue *buffer = iterator->buffer;
     column_t *column;
-    //trace("--\t(%d)\tsize:\t%d\t%d", iterator->position, buffer->size, buffer->end);
     // fall of the end
     if (iterator->position >= iterator->stop) {
         queue_destroy(buffer);
@@ -88,48 +87,37 @@ tactmod_BamIter_next(PyObject *self) {
 
     while (((iterator->position >= buffer->end) || (buffer->size == 0)) &&
            (buffer->end < iterator->stop)) {
-        if (buffer->end > 0) {
-            start = buffer->end;
-        }
-        else {
-            start = iterator->start;
-        }
         
-        stop = start + (100000 * loop);
-        if (iterator->stop < stop) {
-            stop = iterator->stop;
-        }
+        start = iterator->start;
+        
+        start = (BUFFER_SIZE * loop);
+ //       loop = 1;
+        stop = start + BUFFER_SIZE;
+
         queue_destroy(buffer);
         buffer = queue_init();
 
-        //trace("buffering region %d - %d", start, stop);
         pileup = bam_plbuf_init(pileup_func, iterator);
         iterator->pileup = pileup;
         bam_fetch(bam->fd->x.bam, bam->idx, 0,
                   start, stop, (void *)iterator, fetch_f);
-
         // top off the buffer (as per samtools doc)
         bam_plbuf_push(NULL, pileup);
         bam_plbuf_destroy(pileup);
         loop++;
     }
-
+//
+//  Construct the tuple
+//    
+    column = dequeue(buffer);
     iterator->buffer = buffer; 
-    if (buffer->size > 0) {
-        column = dequeue(buffer);
-        // build the tuple
-        tuple = PyTuple_New(2);
-        PyTuple_SET_ITEM(tuple, 0, Py_None);
-        PyTuple_SET_ITEM(tuple, 1, Py_None);
-        free(column);
+    tuple = PyTuple_New(2);
+    PyTuple_SET_ITEM(tuple, 0, Py_None);
+    PyTuple_SET_ITEM(tuple, 1, Py_None);
+//        tuple = Py_None;
+    Py_INCREF(tuple);
         
-        iterator->position = buffer->position;
-        return tuple;
-    }
-
-    queue_destroy(buffer);
-    PyErr_SetNone(PyExc_StopIteration);
-    return NULL;
+    return tuple;
 }
 
 void
@@ -214,7 +202,6 @@ fetch_f(const bam1_t *b, void *data) {
 static int
 pileup_func(uint32_t tid, uint32_t pos, int n,
             const bam_pileup1_t *pl, void *data) {
-   
     int offset, distance, length;
     uint8_t quality, mapping, baq, mapped, reverse, paired, duplicate;
     uint8_t base2;
@@ -226,19 +213,14 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     tactmod_BamIter *iterator = (tactmod_BamIter *)data;
     PyTupleObject *tuple;
     PyTupleObject *features;
-    column_t *column;
+    column_t column;
     PyIntObject *value;
     int start, end;
     queue *buffer = iterator->buffer;
     int i, j;
-    if ((pos < iterator->start) || (pos > iterator->stop)) {
-        return 0;
-    }
-//    tuple = PyTuple_New(6);
-//    Py_INCREF(tuple);
-        
-    value = PyInt_FromLong(pos);
-//    Py_INCREF(value);
+//    if ((pos < iterator->start) || (pos > iterator->stop)) {
+//        return 0;
+//    }
     if (0) {
         PyTuple_SET_ITEM(tuple, POSITION, value); 
         value = PyInt_FromLong(n);
@@ -260,7 +242,6 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
             alignment = pl[i];
             b = alignment.b;
             if ((pos - b->core.pos) < 0) {
-                trace("WHAT");
                 exit(1);
             }
 
@@ -306,28 +287,25 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     
         }
     }
-    column = malloc(sizeof(column));
-    column->position = pos;
+//    column = malloc(sizeof(column));
+    column.position = pos;
     enqueue(buffer, column, pos);
     buffer->end = pos;
-//    trace("buffer size:\t%d", buffer->size);
 //    PyList_Append(buffer, (PyObject *)tuple);
     return 0;
 }
 
 // filling the things that are empty
-int enqueue(queue *list, column_t *content, uint32_t pos) {
-    queue_node *node = malloc(sizeof(queue_node));
-    queue_node *tail;
-    
-    if (list->size > 0) {
-        tail = list->tail;
-        tail->next = node;
-    } else {
+int enqueue(queue *list, column_t content, uint32_t pos) {
+    queue_node *node;
+    node = (queue_node *)malloc(sizeof(queue_node));
+    if (list->size == 0) {
         list->position = pos;
         list->head = node;
+    } else {
+        list->tail->next = node;
     }
-
+     
     list->tail = node;
     node->content = content;
     node->position = pos;
@@ -337,17 +315,18 @@ int enqueue(queue *list, column_t *content, uint32_t pos) {
 }
 
 // emptying the things that are full
-column_t *dequeue(queue *list) {
-//    trace("deque");
-    column_t *content;
+column_t dequeue(queue *list) {
+    column_t content;
 
-    queue_node *head = list->head;
-    content = head->content;
-    list->position = head->position;
+    queue_node *next;
+
+    content = list->head->content;
+    list->position = list->head->position;
     list->size--;
-    list->head = head->next;
-    
-    free(head);
+    next = list->head->next;
+
+    free(list->head);
+    list->head = next;
     // don't forget to free content!!!!!
     return content;
 }
@@ -363,12 +342,13 @@ queue *queue_init(void) {
 }
 
 int queue_destroy(queue *list) {
-//    trace("destroying linked list");
-    PyObject *item;
+    column_t item;
+    int count = 0;
     while(list->size > 0) {
         item = dequeue(list);
-        free(item);
+        count++;
     }
     free(list);
+    list = NULL;
     return 0;
 }

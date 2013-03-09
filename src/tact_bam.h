@@ -11,6 +11,7 @@
 #define MAPPING_INDEX   3
 #define TAIL_DISTANCE   4
 
+#define BUFFER_SIZE 1000000 // ~ 100MB
 #define POSITION  4
 #define MAX_INDEX   5
 #define MINOR_INDEX 6
@@ -61,7 +62,7 @@ typedef struct {
 typedef struct {
     void *next;
     uint32_t position;
-    column_t *content;
+    column_t content;
 } queue_node;
 
 typedef struct {
@@ -101,8 +102,8 @@ static int fetch_f(const bam1_t *b, void *data);
 static int pileup_func(uint32_t tid, uint32_t pos, int n,
                        const bam_pileup1_t *pl, void *data);
 
-int enqueue(queue *list, column_t *content, uint32_t pos);
-column_t *dequeue(queue *list);
+int enqueue(queue *list, column_t content, uint32_t pos);
+column_t dequeue(queue *list);
 queue *queue_init(void);
 int queue_destroy(queue *list);
 #endif
