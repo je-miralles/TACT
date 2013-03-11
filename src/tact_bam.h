@@ -54,6 +54,7 @@ PyTypeObject tactmod_BamType;
 
 typedef struct {
     uint32_t position;
+    uint16_t depth;
     uint16_t bases[4][6];
     uint16_t features[4];
     uint16_t features_f[2];

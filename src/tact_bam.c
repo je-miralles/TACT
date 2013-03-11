@@ -104,7 +104,7 @@ tactmod_BamIter_next(PyObject *self) {
         buffer = queue_init();
         buffer->fetch_start = start;
         buffer->fetch_stop = stop;
-        trace("buffering %d - %d", start, stop);
+        //trace("buffering %d - %d", start, stop);
         pileup = bam_plbuf_init(pileup_func, iterator);
         iterator->pileup = pileup;
         bam_fetch(bam->fd->x.bam, bam->idx, 0,
@@ -120,14 +120,17 @@ tactmod_BamIter_next(PyObject *self) {
     column = dequeue(buffer);
     iterator->buffer = buffer; 
     iterator->position = column.position;
-    if (column.features[0] > 20) {
-        trace("lots of reverse strands");
-    }
+//    if (column.features[0] > 30) {
+//        trace("lots of reverse strands");
+//    }
 //    trace("%d", iterator->position);
-//    tuple = PyTuple_New(2);
-//    PyTuple_SET_ITEM(tuple, 0, Py_None);
-//    PyTuple_SET_ITEM(tuple, 1, Py_None);
-        tuple = Py_None;
+    tuple = PyTuple_New(5);
+    PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong((long)column.position));
+    PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong((long)column.depth));
+    PyTuple_SET_ITEM(tuple, 2, PyInt_FromLong((long)column.features[0]));
+    PyTuple_SET_ITEM(tuple, 3, PyInt_FromLong((long)column.features[1]));
+    PyTuple_SET_ITEM(tuple, 4, PyInt_FromLong((long)column.features[2]));
+//        tuple = Py_None;
     Py_INCREF(tuple);
         
     return tuple;
@@ -233,6 +236,9 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     }
         //
     column.features[0] = 0;
+    column.features[1] = 0;
+    column.features[2] = 0;
+    column.depth = n;
     if (1) {
     for (i = 0; i < n; i++) {
         // append tuple to list
@@ -251,7 +257,9 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     
             quality = bam1_qual(b)[offset];
             column.features[0] += reverse;    
+            column.features[1] += quality;
             mapping = b->core.qual;
+            column.features[2] += mapping;
 
             distance = 0;
             if (reverse) {
