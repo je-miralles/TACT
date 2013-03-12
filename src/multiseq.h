@@ -7,23 +7,24 @@
 #include "column.h"
 
 typedef struct {
+    uint32_t min;
+    uint32_t max;
+    uint8_t size; // if you have more than 256 genomes do something else
+    PyTupleObject *iterators;
+} priority_heap;
+
+typedef struct {
     PyObject_HEAD
-    int position;
-    uint8_t n_genomes;
+    uint32_t position;
+    priority_heap *heap;
     PyObject *contig;
-    PyObject *genomes;
 } tactmod_MultiSeqObject;
 
 typedef struct {
     PyObject_HEAD
-    int position;
-    char *contig;
-    int start;
-    int end;
-    int i;
-    PyObject *content;
+    uint32_t start;
+    uint32_t end;
     tactmod_MultiSeqObject *parent;
-    PyObject *iterators;
 } tactmod_MultiSeqIter;
 
 /* MultiSequence traverser object functions */
@@ -51,4 +52,6 @@ PyMemberDef MultiSeq_members[];
 PyTypeObject tactmod_MultiSeqType;
 PyTypeObject tactmod_MultiSeqIterType;
 
+void hpush(priority_heap *heap, PyObject *insertion);
+PyObject *hpop(priority_heap *heap);
 #endif
