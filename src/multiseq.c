@@ -69,6 +69,9 @@ MultiSeqIter_iter(PyObject *self)
 {
     /* Recursively create iterator objects from
        internal genomic sequences */
+
+    // initialize heap
+    // push iterators onto heap
     Py_INCREF(self);
     return self;
 }

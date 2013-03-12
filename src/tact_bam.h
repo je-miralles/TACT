@@ -58,6 +58,12 @@ typedef struct {
     uint16_t bases[4][6];
     uint16_t features[4];
     uint16_t features_f[2];
+    uint8_t major;
+    uint8_t minor;
+    int indels;
+    double binomial_lll;
+    double binomial_ll;
+    uint16_t ambiguous;
 } column_t;
 
 typedef struct {
@@ -109,4 +115,6 @@ int enqueue(queue *list, column_t content, uint32_t pos);
 column_t dequeue(queue *list);
 queue *queue_init(void);
 int queue_destroy(queue *list);
+
+double binomial_ll(uint16_t k, uint16_t n, double mu);
 #endif

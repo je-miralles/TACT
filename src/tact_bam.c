@@ -124,12 +124,20 @@ tactmod_BamIter_next(PyObject *self) {
 //        trace("lots of reverse strands");
 //    }
 //    trace("%d", iterator->position);
-    tuple = PyTuple_New(5);
+    tuple = PyTuple_New(11);
     PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong((long)column.position));
     PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong((long)column.depth));
     PyTuple_SET_ITEM(tuple, 2, PyInt_FromLong((long)column.features[0]));
     PyTuple_SET_ITEM(tuple, 3, PyInt_FromLong((long)column.features[1]));
     PyTuple_SET_ITEM(tuple, 4, PyInt_FromLong((long)column.features[2]));
+    PyTuple_SET_ITEM(tuple, 5, PyInt_FromLong((long)column.major));
+    PyTuple_SET_ITEM(tuple, 6, PyInt_FromLong((long)column.minor));
+    PyTuple_SET_ITEM(tuple, 7, PyInt_FromLong((long)column.ambiguous));
+    PyTuple_SET_ITEM(tuple, 8, PyInt_FromLong((long)column.indels));
+    PyTuple_SET_ITEM(tuple, 9, PyFloat_FromDouble(column.binomial_ll));
+    PyTuple_SET_ITEM(tuple, 10, PyFloat_FromDouble(column.binomial_lll));
+//
+//        
 //        tuple = Py_None;
     Py_INCREF(tuple);
         
@@ -209,6 +217,9 @@ Bam_counts(tactmod_BamObject *self, PyObject *args) {
 fetch_f(const bam1_t *b, void *data) {
     // add this alignment to the pileup buffer
     // here would go a low level filter
+    if (b->core.n_cigar > 1) {
+        return 0;
+    }
     tactmod_BamIter *s = (tactmod_BamIter *)data;
     bam_plbuf_t *pileup = (bam_plbuf_t *)s->pileup;
     bam_plbuf_push(b, pileup);
@@ -224,9 +235,8 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     long old_value;
     bam1_t *b;
     bam_pileup1_t alignment;
-
+    uint16_t base_counts[4] = {0, 0, 0, 0};
     tactmod_BamIter *iterator = (tactmod_BamIter *)data;
-
     column_t column;
     int start, end;
     queue *buffer = iterator->buffer;
@@ -234,46 +244,62 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     if ((pos < buffer->fetch_start) || (pos > buffer->fetch_stop)) {
         return 0;
     }
+
+    column.major = 0;
+    column.minor = 0;
+    column.indels = 0;
+    column.ambiguous = 0;
         //
     column.features[0] = 0;
     column.features[1] = 0;
     column.features[2] = 0;
     column.depth = n;
-    if (1) {
     for (i = 0; i < n; i++) {
         // append tuple to list
         length = 100; 
         //ops = b->core.n_cigar;
-            alignment = pl[i];
-            b = alignment.b;
+        alignment = pl[i];
+        b = alignment.b;
+        column.indels += alignment.indel;
 
-            offset = pos - b->core.pos;
-            base2 = base4_base2(bam1_seqi(bam1_seq(b), offset));
-
-            if (base2 > 3) {
-                return 1;
+        
+        offset = pos - b->core.pos;
+        base2 = base4_base2(bam1_seqi(bam1_seq(b), offset));
+        if (base2 <= 3)  {
+        
+            base_counts[base2]++;
+            if (base_counts[base2] >= column.major) {
+                column.major = base_counts[base2];    
             }
-            reverse = 1 && (b->core.flag & BAM_FREVERSE);
+
+            if ((base_counts[base2] >= column.minor) && 
+                (base_counts[base2] < column.major)) {
+                column.minor = base_counts[base2];
+            }
+        } else {
+                column.ambiguous++;
+        }
+        reverse = 1 && (b->core.flag & BAM_FREVERSE);
     
-            quality = bam1_qual(b)[offset];
-            column.features[0] += reverse;    
-            column.features[1] += quality;
-            mapping = b->core.qual;
-            column.features[2] += mapping;
-
-            distance = 0;
-            if (reverse) {
-                distance = length - offset;
-            } else {
-                distance = offset;
-            }
-    } 
+        quality = bam1_qual(b)[offset];
+        column.features[0] += reverse;    
+        column.features[1] += quality;
+        mapping = b->core.qual;
+        column.features[2] += mapping;
+        distance = 0;
+        if (reverse) {
+            distance = length - offset;
+        } else {
+            distance = offset;
+        }
     }
-//    column = malloc(sizeof(column));
-    column.position = pos;
-    enqueue(buffer, column, pos);
-    buffer->end = pos;
-//    PyList_Append(buffer, (PyObject *)tuple);
+//    trace("major:\t%d\tminor:\t%d", column.major, column.minor);
+    uint16_t t = base_counts[column.major] + base_counts[column.minor];
+    column.binomial_lll = binomial_ll(column.major, column.depth, 0.001); 
+    column.binomial_ll = binomial_ll(column.major, column.depth, 0.5);
+   column.position = (pos + 1); // HERE BE DRAGONS
+    enqueue(buffer, column, column.position);
+    buffer->end = column.position;
     return 0;
 }
 
@@ -309,7 +335,6 @@ column_t dequeue(queue *list) {
 
     free(list->head);
     list->head = next;
-    // don't forget to free content!!!!!
     return content;
 }
 queue *queue_init(void) {
@@ -333,4 +358,21 @@ int queue_destroy(queue *list) {
     free(list);
     list = NULL;
     return 0;
+}
+
+double binomial_ll(uint16_t k, uint16_t n, double mu) {
+    uint16_t i;
+    uint32_t d;
+    unsigned long r = 1;
+    d = 0;
+    double x;
+    for (i = n; i > k; i--) {
+        r *= i;
+        while (d > 1 && (r % d)) {
+            r /= d--;
+        }
+    }
+    x = log(r) + (k * log(mu)) + (d * log(1 - mu));
+    //trace("major: %d,\ttotal: %d, score: %f (%f)", k, n, x, log(-x));
+    return log(-x);
 }
