@@ -5,13 +5,16 @@
 #include "base.h"
 #include "column.h"
 
+#define PY_ARRAY_UNIQUE_SYMBOL tctm
+#include "arrayobject.h"
+
 #define TOTAL_INDEX 0
 #define QUALITY_INDEX   1
 #define DIRECTION_INDEX 2
 #define MAPPING_INDEX   3
 #define TAIL_DISTANCE   4
 
-#define BUFFER_SIZE 1000000 // ~ 100MB
+#define BUFFER_SIZE 1000000 // ~ 200MB
 #define POSITION  4
 #define MAX_INDEX   5
 #define MINOR_INDEX 6
@@ -55,14 +58,12 @@ PyTypeObject tactmod_BamType;
 typedef struct {
     uint32_t position;
     uint16_t depth;
-    uint16_t bases[4][6];
-    uint16_t features[4];
+    uint16_t features[5][6];
     uint16_t features_f[2];
     uint8_t major;
     uint8_t minor;
     int indels;
-    double binomial_lll;
-    double binomial_ll;
+    double entropy;
     uint16_t ambiguous;
 } column_t;
 
@@ -90,6 +91,7 @@ typedef struct {
     uint32_t start;
     uint32_t stop;
     tactmod_BamObject *bam;
+    PyObject *return_value;
     bam_plbuf_t *pileup;
     queue *buffer; // the buffer linked list
 } tactmod_BamIter;
@@ -117,4 +119,5 @@ queue *queue_init(void);
 int queue_destroy(queue *list);
 
 double binomial_ll(uint16_t k, uint16_t n, double mu);
+double entropy(uint16_t bases[4], uint16_t depth);
 #endif

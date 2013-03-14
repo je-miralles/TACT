@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include "structmember.h"
 #include "tact_bam.h"
+
 /* 
  * tact_bam.c serves as a driver for the samtools bam library
  *
@@ -66,15 +67,16 @@ tactmod_BamIter_next(PyObject *self) {
     uint32_t end;
     int status;
     int tid;
-    int i, j;
+    uint8_t i, j;
     int loop = 1;
     uint32_t stop = 0;
 //    pileup_buffer buffer;
     tactmod_BamIter *iterator = (tactmod_BamIter *)self; 
     tactmod_BamObject *bam = iterator->bam;
     bam_plbuf_t *pileup;
-    PyTupleObject *tuple;
+    PyTupleObject *tuple = iterator->return_value;
     PyTupleObject *features;
+    PyTupleObject *nested_tuple;
     PyIntObject *value;
     queue *buffer = iterator->buffer;
     column_t column;
@@ -104,7 +106,7 @@ tactmod_BamIter_next(PyObject *self) {
         buffer = queue_init();
         buffer->fetch_start = start;
         buffer->fetch_stop = stop;
-        //trace("buffering %d - %d", start, stop);
+        trace("buffering %d - %d", start, stop);
         pileup = bam_plbuf_init(pileup_func, iterator);
         iterator->pileup = pileup;
         bam_fetch(bam->fd->x.bam, bam->idx, 0,
@@ -124,23 +126,29 @@ tactmod_BamIter_next(PyObject *self) {
 //        trace("lots of reverse strands");
 //    }
 //    trace("%d", iterator->position);
+    if (tuple) {
+        Py_DECREF(tuple);
+    }
     tuple = PyTuple_New(11);
     PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong((long)column.position));
-    PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong((long)column.depth));
-    PyTuple_SET_ITEM(tuple, 2, PyInt_FromLong((long)column.features[0]));
-    PyTuple_SET_ITEM(tuple, 3, PyInt_FromLong((long)column.features[1]));
-    PyTuple_SET_ITEM(tuple, 4, PyInt_FromLong((long)column.features[2]));
-    PyTuple_SET_ITEM(tuple, 5, PyInt_FromLong((long)column.major));
-    PyTuple_SET_ITEM(tuple, 6, PyInt_FromLong((long)column.minor));
-    PyTuple_SET_ITEM(tuple, 7, PyInt_FromLong((long)column.ambiguous));
-    PyTuple_SET_ITEM(tuple, 8, PyInt_FromLong((long)column.indels));
-    PyTuple_SET_ITEM(tuple, 9, PyFloat_FromDouble(column.binomial_ll));
-    PyTuple_SET_ITEM(tuple, 10, PyFloat_FromDouble(column.binomial_lll));
+    for (i = 0; i < 5; i++) {
+        nested_tuple = PyTuple_New(6);
+        for (j = 0; j < 6; j++) {
+            PyTuple_SET_ITEM(nested_tuple, j, PyInt_FromLong((long)column.features[i][j]));
+        }
+        PyTuple_SET_ITEM(tuple, i + 1, nested_tuple);
+    }
+    PyTuple_SET_ITEM(tuple, 6, PyInt_FromLong((long)column.major));
+    PyTuple_SET_ITEM(tuple, 7, PyInt_FromLong((long)column.minor));
+    PyTuple_SET_ITEM(tuple, 8, PyInt_FromLong((long)column.ambiguous));
+    PyTuple_SET_ITEM(tuple, 9, PyInt_FromLong((long)column.indels));
+    PyTuple_SET_ITEM(tuple, 10, PyFloat_FromDouble(column.entropy));
+//    PyTuple_SET_ITEM(tuple, 11, PyFloat_FromDouble(0.0));
 //
 //        
 //        tuple = Py_None;
     Py_INCREF(tuple);
-        
+    iterator->return_value = tuple; 
     return tuple;
 }
 
@@ -233,14 +241,19 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     uint8_t quality, mapping, baq, mapped, reverse, paired, duplicate;
     uint8_t base2;
     long old_value;
+    uint8_t i, j;
     bam1_t *b;
     bam_pileup1_t alignment;
     uint16_t base_counts[4] = {0, 0, 0, 0};
-    tactmod_BamIter *iterator = (tactmod_BamIter *)data;
     column_t column;
+    for (i = 0; i < 5; i++) {
+        for (j = 0; j < 6; j++) {
+            column.features[i][j] = 0;
+        }
+    }
+    tactmod_BamIter *iterator = (tactmod_BamIter *)data;
     int start, end;
     queue *buffer = iterator->buffer;
-    int i, j;
     if ((pos < buffer->fetch_start) || (pos > buffer->fetch_stop)) {
         return 0;
     }
@@ -250,9 +263,6 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     column.indels = 0;
     column.ambiguous = 0;
         //
-    column.features[0] = 0;
-    column.features[1] = 0;
-    column.features[2] = 0;
     column.depth = n;
     for (i = 0; i < n; i++) {
         // append tuple to list
@@ -263,41 +273,59 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
         column.indels += alignment.indel;
 
         
-        offset = pos - b->core.pos;
+        //offset = pos - b->core.pos;
+        offset = alignment.qpos; 
         base2 = base4_base2(bam1_seqi(bam1_seq(b), offset));
         if (base2 <= 3)  {
-        
             base_counts[base2]++;
-            if (base_counts[base2] >= column.major) {
-                column.major = base_counts[base2];    
+            if (base_counts[base2] >= base_counts[column.major]) {
+                column.major = base2;    
             }
 
-            if ((base_counts[base2] >= column.minor) && 
-                (base_counts[base2] < column.major)) {
-                column.minor = base_counts[base2];
+            if ((base_counts[base2] >= base_counts[column.minor]) && 
+                (base_counts[base2] < base_counts[column.major])) {
+                column.minor = base2;
             }
         } else {
-                column.ambiguous++;
+            column.ambiguous++;
+            continue;
         }
         reverse = 1 && (b->core.flag & BAM_FREVERSE);
-    
         quality = bam1_qual(b)[offset];
-        column.features[0] += reverse;    
-        column.features[1] += quality;
         mapping = b->core.qual;
-        column.features[2] += mapping;
         distance = 0;
         if (reverse) {
             distance = length - offset;
         } else {
             distance = offset;
         }
+
+        column.features[base2][0] += 1;
+        column.features[base2][1] += quality;
+        column.features[base2][2] += mapping;
+        column.features[base2][3] += distance;
+        column.features[base2][4] += reverse;
+        column.features[base2][5] += 0;
+
+        column.features[4][0] += 1;
+        column.features[4][1] += quality;
+        column.features[4][2] += mapping;
+        column.features[4][3] += distance;
+        column.features[4][4] += reverse;
+        column.features[4][5] += 0;
+
+
+
+
     }
 //    trace("major:\t%d\tminor:\t%d", column.major, column.minor);
-    uint16_t t = base_counts[column.major] + base_counts[column.minor];
-    column.binomial_lll = binomial_ll(column.major, column.depth, 0.001); 
-    column.binomial_ll = binomial_ll(column.major, column.depth, 0.5);
-   column.position = (pos + 1); // HERE BE DRAGONS
+//    uint16_t t = base_counts[column.major] + base_counts[column.minor];
+//    column.binomial_lll = binomial_ll(column.major, column.depth, 0.001); 
+//    column.binomial_ll = binomial_ll(column.major, column.depth, 0.5);
+
+    column.position = (pos + 1); // HERE BE DRAGONS
+    column.entropy = entropy(base_counts, column.depth);
+
     enqueue(buffer, column, column.position);
     buffer->end = column.position;
     return 0;
@@ -375,4 +403,17 @@ double binomial_ll(uint16_t k, uint16_t n, double mu) {
     x = log(r) + (k * log(mu)) + (d * log(1 - mu));
     //trace("major: %d,\ttotal: %d, score: %f (%f)", k, n, x, log(-x));
     return log(-x);
+}
+
+double entropy(uint16_t bases[4], uint16_t depth) {
+    uint8_t i;
+    double e = 0;
+    float pr;
+    for (i = 0; i < 4; i++) {
+        pr = (float)bases[i] / (float)depth;
+        if (pr != 0) {
+            e += ((log(pr)/log(4)) * pr); 
+        }
+    }
+    return -e;
 }
