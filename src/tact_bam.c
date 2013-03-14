@@ -258,8 +258,6 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
         return 0;
     }
 
-    column.major = 0;
-    column.minor = 0;
     column.indels = 0;
     column.ambiguous = 0;
         //
@@ -278,14 +276,6 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
         base2 = base4_base2(bam1_seqi(bam1_seq(b), offset));
         if (base2 <= 3)  {
             base_counts[base2]++;
-            if (base_counts[base2] >= base_counts[column.major]) {
-                column.major = base2;    
-            }
-
-            if ((base_counts[base2] >= base_counts[column.minor]) && 
-                (base_counts[base2] < base_counts[column.major])) {
-                column.minor = base2;
-            }
         } else {
             column.ambiguous++;
             continue;
@@ -313,10 +303,22 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
         column.features[4][3] += distance;
         column.features[4][4] += reverse;
         column.features[4][5] += 0;
-
-
-
-
+    }
+    column.major = 0;
+    uint16_t max = 0;
+    for (i = 0; i < 4; i++) {
+        if (base_counts[i] > max) {
+            column.major = i;
+            max = base_counts[i];
+        }
+    }
+    column.minor = column.major;
+    max = 0;
+    for (i = 0; i < 4; i++) {
+        if ((base_counts[i] > max) && (i != column.major)) {
+            column.minor = i;
+            max = base_counts[i];
+        }
     }
 //    trace("major:\t%d\tminor:\t%d", column.major, column.minor);
 //    uint16_t t = base_counts[column.major] + base_counts[column.minor];
