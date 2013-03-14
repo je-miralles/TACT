@@ -67,21 +67,7 @@ MultiSeq_exit(PyObject *self)
 PyObject *
 MultiSeqIter_iter(PyObject *self)
 {
-    /* Recursively create iterator objects from
-       internal genomic sequences */
-
     tactmod_MultiSeqObject *parent = ((tactmod_MultiSeqIter *)self)->parent; 
-    uint8_t i;
-    
-    // initialize heap
-    parent->heap->min = 0;
-    parent->heap->max = 0;
-
-    // push iterators onto heap
-
-    for (i = 0; i < parent->heap->size; i++) {
-//        PyTuple_SET_ITEM(self->heap->iterators, i, iterator);        
-    }
     Py_INCREF(self);
     return self;
 }
@@ -89,7 +75,7 @@ MultiSeqIter_iter(PyObject *self)
 void
 MultiSeq_dealloc(tactmod_MultiSeqObject *self)
 {
-    free(self->heap);
+    free(self->q);
     self->ob_type->tp_free((PyObject*)self);
 }
 
@@ -120,9 +106,10 @@ MultiSeq_init(tactmod_MultiSeqObject *self, PyObject *args, PyObject *kwds)
         return NULL;
     }
     // initialize heap
-    s->heap = malloc(sizeof(priority_heap));
-    self->heap->size = (uint8_t)PySequence_Length(genomes);
-    self->heap->iterators = PySequence_Fast(genomes, "Error parsing genomes");
+    s->q = malloc(sizeof(priorityq));
+
+    self->genomes = PySequence_Fast(genomes, "Error reading genome list");
+//    self->heap->size = (uint8_t)PySequence_Length(self->genomes);
     return 0;
 }
 
@@ -136,9 +123,15 @@ PyObject *
 MultiSeq_iterate(tactmod_MultiSeqObject *self, PyObject *args)
 {
     tactmod_MultiSeqIter *iter;
-    char *range = NULL;
+    tactmod_BamObject *bam;
+    tactmod_BamIter *bam_iter;
+    tactmod_BamIter *_bam;
+    tactmod_MultiSeqObject *s = (tactmod_MultiSeqObject *)self;
+    tactmod_BamIter *temp;
     uint8_t i;
-    if(!PyArg_ParseTuple(args, "s", &range)) {
+    uint32_t start, end;
+    uint8_t contig;
+    if(!PyArg_ParseTuple(args, "iii", &contig, &start, &end)) {
         return NULL;
     }
    
@@ -150,45 +143,94 @@ MultiSeq_iterate(tactmod_MultiSeqObject *self, PyObject *args)
         Py_DECREF(iter);
         return NULL;
     }
-
     iter->parent = self;
-    for(i = 0; i < self->heap->size; i++) {
-        PyObject *item;
-        item = PySequence_Fast_GET_ITEM(self->heap->iterators, i);
-        if (!item) {
-            return NULL;
-        }
-        tactmod_BamIter *iterator = PyObject_CallMethod(item,
-                                                "counts", "(iii)", 0, 100, 200);
+    s->q->_min = 0;
+    s->q->_max = 0;
+    s->q->max = 0;
+    s->q->min = 1;
 
-        /* Set multiSeq iterator's position to the internal iterator
-           if the internal iterator has decided on one */
-
-        if (iterator->position > -1) {
-            iter->parent->position = iterator->position;
-        }
-        PyList_SetItem(iter->parent->heap->iterators, i, iterator);
-
+    for(i = 0; i < 2; i++) {
+        bam = (tactmod_BamObject *)PyTuple_GET_ITEM(self->genomes, i); 
+        s->iterators[i] = tactmod_BamIter_iter(PyObject_CallMethod(bam, "counts", "iii", 0, 8900, 9100));
+        Py_INCREF(s->iterators[i]);
+        s->iterations[i] = tactmod_BamIter_next(s->iterators[i]);
+        qupdate(s->q, s->iterations[i]);
     }
-    iter->start = -1;
-    iter->end = -1;
-    self->position = -1;
+    s->position = s->q->_max;
+    iter->start = 8900;
+    iter->end = 9100;
     return (PyObject *)iter;
 }
 
 PyObject *
 MultiSeqIter_next(PyObject *self)
 {
-    PyObject *iterator;
-    
+    tactmod_BamIter *iterator;
+    tactmod_MultiSeqObject *parent;
+    tactmod_MultiSeqIter *s;
+    PyObject *ret;
+    PyObject *n;
+    uint8_t i;
+    uint8_t min, max; 
+    s = (tactmod_MultiSeqIter*)self;
+    parent = s->parent;
+    ret = PyTuple_New(2);
+    if ((parent->iterations[0] == NULL) || (parent->iterations[1] == NULL)) {
+        PyErr_SetNone(PyExc_StopIteration);
+        return NULL;
+    }
+    while (parent->q->_max < s->end) {
+        ret = PyTuple_New(2);
+      
+        min = parent->q->_min;
+        iterator = parent->iterators[min];
+        qupdate(parent->q, iterator);
+
+       if (parent->q->_min < parent->q->_max) {
+            if (iterator->position > parent->q->_min) {
+                parent->iterations[parent->q->min] = tactmod_BamIter_next(iterator);                
+                qupdate(parent->q, parent->iterators);
+            }
+        }
+
+        if (parent->q->_max == parent->q->_min) {
+            PyTuple_SET_ITEM(ret, 0, parent->iterations[0]);
+            PyTuple_SET_ITEM(ret, 1, parent->iterations[1]);
+            parent->position = parent->q->_max;
+            // call next on min iterator before returning
+            parent->iterations[parent->q->min] = tactmod_BamIter_next(iterator);
+            // push it back onto the queue
+            qupdate(parent->q, iterator);
+            return ret;
+        }
+        else {
+            qupdate(parent->q, iterator);
+            // push back on the popped value
+        }
+    }
     PyErr_SetNone(PyExc_StopIteration);
     return NULL;
 }
 
-void hpush(priority_heap *heap, PyObject *insertion) {
-    
+void qupdate(priorityq *q, tactmod_BamIter *iterators[2]) {
+    tactmod_BamIter *iterator = iterators[0];
+    tactmod_BamIter *temp;
+//    iterator = (tactmod_BamIter *)PyTuple_GET_ITEM(q->iterators, i);
+
+    if (iterator->position <= q->_min) {
+        temp = q->min;
+        q->min = iterator;
+        q->max = temp;
+//        q->_min = q->min->position;
+//        q->_max = q->max->position;
+    } else {
+        temp = q->max;
+        q->max = iterator;
+        q->min = temp;
+//        q->_min = q->min->position;
+//        q->_max = q->max->position;
+    }
+
+   
 }
 
-PyObject *hpop(priority_heap *heap) {
-    return Py_None;
-}

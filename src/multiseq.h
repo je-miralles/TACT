@@ -6,18 +6,22 @@
 #include "base.h"
 #include "column.h"
 
+#define PY_ARRAY_UNIQUE_SYMBOL tctm
 typedef struct {
-    uint32_t min;
-    uint32_t max;
-    uint8_t size; // if you have more than 256 genomes do something else
-    PyTupleObject *iterators;
-} priority_heap;
+    uint32_t _min;
+    uint32_t _max;
+    uint8_t max; // priority queue only needs to retain index now
+    uint8_t min;
+} priorityq;
 
 typedef struct {
     PyObject_HEAD
     uint32_t position;
-    priority_heap *heap;
+    priorityq *q;
     PyObject *contig;
+    PyTupleObject *genomes;
+    tactmod_BamIter *iterators[2];
+    PyObject *iterations[2]; // this is weird
 } tactmod_MultiSeqObject;
 
 typedef struct {
@@ -26,6 +30,7 @@ typedef struct {
     uint32_t end;
     tactmod_MultiSeqObject *parent;
 } tactmod_MultiSeqIter;
+
 
 /* MultiSequence traverser object functions */
 static PyObject *MultiSeq_new(PyTypeObject *type, PyObject *args,
@@ -52,6 +57,5 @@ PyMemberDef MultiSeq_members[];
 PyTypeObject tactmod_MultiSeqType;
 PyTypeObject tactmod_MultiSeqIterType;
 
-void hpush(priority_heap *heap, PyObject *insertion);
-PyObject *hpop(priority_heap *heap);
+void qupdate(priorityq *q, tactmod_BamIter *iterators[2]);
 #endif
