@@ -10,16 +10,13 @@
  */
 
 PyMethodDef Bam_methods[] = {
-//    {"column", (PyCFunction)Bam_slice, METH_VARARGS,
-//                "columns covering a range"},
-//    {"pileup", (PyCFunction)Bam_pileup, METH_VARARGS,
-//                "pileups covering a range"},
     {"counts", (PyCFunction)Bam_counts, METH_VARARGS,
                 "fixed size tuples"},
     {NULL}
 };
 
 PyMemberDef Bam_members[] = {
+    {"targets", T_OBJECT_EX, offsetof(tactmod_BamObject, targets), 0, "targets"},
     {NULL}
 };
 
@@ -98,23 +95,24 @@ tactmod_BamIter_next(PyObject *self) {
 
         stop = start + BUFFER_SIZE;
 
-        if (stop > iterator->stop) {
-            stop = iterator->stop;
-        }
-
         queue_destroy(buffer);
         buffer = queue_init();
         buffer->fetch_start = start;
         buffer->fetch_stop = stop;
-        trace("buffering %d - %d", start, stop);
         pileup = bam_plbuf_init(pileup_func, iterator);
         iterator->pileup = pileup;
+        trace("buffering %d - %d", start, stop);
         bam_fetch(bam->fd->x.bam, bam->idx, 0,
                   start, stop, (void *)iterator, fetch_f);
         // top off the buffer (as per samtools doc)
         bam_plbuf_push(NULL, pileup);
         bam_plbuf_destroy(pileup);
-        loop++;
+         if ((stop > iterator->stop) && (buffer->size == 0)) {
+            PyErr_SetNone(PyExc_StopIteration);
+            return NULL;
+        }
+
+       loop++;
     }
 //
 //  Construct the tuple
@@ -122,10 +120,6 @@ tactmod_BamIter_next(PyObject *self) {
     column = dequeue(buffer);
     iterator->buffer = buffer; 
     iterator->position = column.position;
-//    if (column.features[0] > 30) {
-//        trace("lots of reverse strands");
-//    }
-//    trace("%d", iterator->position);
     if (tuple) {
         Py_DECREF(tuple);
     }
@@ -144,9 +138,6 @@ tactmod_BamIter_next(PyObject *self) {
     PyTuple_SET_ITEM(tuple, 9, PyInt_FromLong((long)column.indels));
     PyTuple_SET_ITEM(tuple, 10, PyFloat_FromDouble(column.entropy));
 //    PyTuple_SET_ITEM(tuple, 11, PyFloat_FromDouble(0.0));
-//
-//        
-//        tuple = Py_None;
     Py_INCREF(tuple);
     iterator->return_value = tuple; 
     return tuple;
@@ -178,15 +169,25 @@ Bam_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 
 int
 Bam_init(tactmod_BamObject *self, PyObject *args, PyObject *kwds) {
+    uint8_t i;
     PyObject *filename = NULL;
+    PyObject *target = NULL;
     if (!PyArg_ParseTuple(args, "s", &filename)) {
         return NULL;
     }
 
     self->fd = samopen(filename, "rb", 0);
+    self->header = self->fd->header;
     self->idx = bam_index_load(filename);
-
-    if (!self->fd) {
+    self->targets = PyTuple_New(self->header->n_targets);
+    Py_INCREF(self->targets);
+    for (i = 0; i < self->header->n_targets; i++) {
+        target = Py_BuildValue("s", self->header->target_name[i]);
+//        Py_INCREF(target);
+        PyTuple_SET_ITEM(self->targets, i, target);
+        
+    }
+   if (!self->fd) {
         PyErr_SetString(PyExc_IOError, "Cannot open bam file");
         return NULL;
     return 0;
@@ -208,16 +209,33 @@ PyObject *
 Bam_counts(tactmod_BamObject *self, PyObject *args) {
     tactmod_BamIter *iter;
     int tid, start, stop;
-    
+    uint32_t right_bound; 
+
     if (!PyArg_ParseTuple(args, "iii", &tid, &start, &stop)) return NULL;
 
     iter = (tactmod_BamIter *)PyObject_New(tactmod_BamIter,
                                            &tactmod_BamIterType);
 //    Py_INCREF(iter); 
+    uint8_t i = 0;
+    right_bound = self->header->target_len[tid];
+    if (right_bound < stop) {
+
+        stop = right_bound;
+    }
+
+    if (stop < 0) {
+        stop = right_bound;
+    }
+
+    if (start > stop) {
+        return NULL;
+    }
+
     iter->bam = self;
     iter->offset = 0;
     iter->position = start;
     iter->start = start;
+
     iter->stop = stop;
     return (PyObject *)iter;
 }
@@ -237,7 +255,7 @@ fetch_f(const bam1_t *b, void *data) {
 static int
 pileup_func(uint32_t tid, uint32_t pos, int n,
             const bam_pileup1_t *pl, void *data) {
-    int offset, distance, length;
+    int offset, distance, length, r;
     uint8_t quality, mapping, baq, mapped, reverse, paired, duplicate;
     uint8_t base2;
     long old_value;
@@ -251,6 +269,7 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
             column.features[i][j] = 0;
         }
     }
+//    trace("\t-> %d", pos);
     tactmod_BamIter *iterator = (tactmod_BamIter *)data;
     int start, end;
     queue *buffer = iterator->buffer;
@@ -262,14 +281,15 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     column.ambiguous = 0;
         //
     column.depth = n;
-    for (i = 0; i < n; i++) {
+//    trace("\t\tinside loop");
+    for (r = 0; r < n; r++) {
         // append tuple to list
         length = 100; 
         //ops = b->core.n_cigar;
-        alignment = pl[i];
+        alignment = pl[r];
         b = alignment.b;
         column.indels += alignment.indel;
-
+//        trace("\t\t\t%d\t-> %d/%d\t%s", pos, i, n, b->data);
         
         //offset = pos - b->core.pos;
         offset = alignment.qpos; 
@@ -278,6 +298,7 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
             base_counts[base2]++;
         } else {
             column.ambiguous++;
+//            trace("boop");
             continue;
         }
         reverse = 1 && (b->core.flag & BAM_FREVERSE);

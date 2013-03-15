@@ -7,7 +7,7 @@
  * read from some sequencing or alignment technology and carrying
  * associated information
  */
-
+#define PY_ARRAY_UNIQUE_SYMBOL tctm
 typedef uint8_t base4_t;
 typedef uint8_t base2_t;
 

@@ -62,6 +62,25 @@ base4_base2(base4_t base) {
     }
 }
 
+base2_t
+char_base2(char base) {
+    switch(base) {
+        case 'a':
+        case 'A':
+            return 0x0;
+        case 'c':
+        case 'C':
+            return 0x1;
+        case 'g':
+        case 'G':
+            return 0x2;
+        case 't':
+        case 'T':
+            return 0x3;
+    }
+    return 0x4;
+}
+
 PyObject*
 complement_b(tactmod_BaseObject* b)
 {

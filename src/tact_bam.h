@@ -32,8 +32,10 @@ typedef struct {
 typedef struct {
     PyObject_HEAD
     PyObject *contig;
+    PyTupleObject *targets;
     samfile_t *fd;
     bam_index_t *idx;
+    bam_header_t *header;
 //    bam_plbuf_t *pileup;
 //    PyObject *buffer;
     PyObject *callback;
