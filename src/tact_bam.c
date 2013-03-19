@@ -4,6 +4,8 @@
 #include "structmember.h"
 #include "tact_bam.h"
 
+#define BAM_DEF_MASK 0
+
 /* 
  * tact_bam.c serves as a driver for the samtools bam library
  *
@@ -17,6 +19,7 @@ PyMethodDef Bam_methods[] = {
 
 PyMemberDef Bam_members[] = {
     {"targets", T_OBJECT_EX, offsetof(tactmod_BamObject, targets), 0, "targets"},
+    {"tids", T_OBJECT_EX, offsetof(tactmod_BamObject, tids), 0, "tids"},
     {NULL}
 };
 
@@ -53,6 +56,7 @@ tactmod_BamIter_iter(PyObject *self) {
     // Initialize pileup buffer
     tactmod_BamIter *s = (tactmod_BamIter *)self;
     s->buffer = queue_init();
+    s->return_value = NULL;
     Py_INCREF(self);
     // Check for the rightmost limit of this contig
     return self;
@@ -77,15 +81,16 @@ tactmod_BamIter_next(PyObject *self) {
     PyIntObject *value;
     queue *buffer = iterator->buffer;
     column_t column;
-    // fall of the end
+    // fall off the end
     if (iterator->position >= iterator->stop) {
         queue_destroy(buffer);
+        Py_DECREF(self);
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
     }
 
     while (((iterator->position >= buffer->end) || (buffer->size == 0)) &&
-           (buffer->end < iterator->stop)) {
+           (buffer->end <= iterator->stop)) {
       
         if (buffer->position == 0) {
             start = iterator->start;
@@ -95,21 +100,30 @@ tactmod_BamIter_next(PyObject *self) {
 
         stop = start + BUFFER_SIZE;
 
+        if (stop > iterator->stop) {
+            stop = iterator->stop;
+        }
         queue_destroy(buffer);
+        buffer = NULL;
         buffer = queue_init();
         buffer->fetch_start = start;
         buffer->fetch_stop = stop;
         pileup = bam_plbuf_init(pileup_func, iterator);
         iterator->pileup = pileup;
-        trace("buffering %d - %d", start, stop);
-        bam_fetch(bam->fd->x.bam, bam->idx, 0,
+        bam_fetch(bam->fd->x.bam, bam->idx, iterator->tid,
                   start, stop, (void *)iterator, fetch_f);
+     
         // top off the buffer (as per samtools doc)
-        bam_plbuf_push(NULL, pileup);
+        bam_plbuf_push(0, pileup);
         bam_plbuf_destroy(pileup);
-         if ((stop > iterator->stop) && (buffer->size == 0)) {
+         if ((stop >= iterator->stop) && (buffer->size == 0)) {
+            queue_destroy(buffer);
+            Py_DECREF(self);
             PyErr_SetNone(PyExc_StopIteration);
             return NULL;
+        } else if (buffer->size == 0) {
+            buffer->position = stop;
+            buffer->end = stop;
         }
 
        loop++;
@@ -141,12 +155,14 @@ tactmod_BamIter_next(PyObject *self) {
     Py_INCREF(tuple);
     iterator->return_value = tuple; 
     return tuple;
+
 }
 
 void
 Bam_dealloc(tactmod_BamObject *self) {
     bam_index_destroy(self->idx);
     samclose(self->fd);
+    Py_DECREF(self->tids);
     //Py_XDECREF(self->text);
     Py_CLEAR(self->contig);
     self->ob_type->tp_free((PyObject*)self);
@@ -175,7 +191,8 @@ Bam_init(tactmod_BamObject *self, PyObject *args, PyObject *kwds) {
     if (!PyArg_ParseTuple(args, "s", &filename)) {
         return NULL;
     }
-
+    self->tids = PyDict_New();
+    Py_INCREF(self->tids);
     self->fd = samopen(filename, "rb", 0);
     self->header = self->fd->header;
     self->idx = bam_index_load(filename);
@@ -183,6 +200,7 @@ Bam_init(tactmod_BamObject *self, PyObject *args, PyObject *kwds) {
     Py_INCREF(self->targets);
     for (i = 0; i < self->header->n_targets; i++) {
         target = Py_BuildValue("s", self->header->target_name[i]);
+        PyDict_SetItemString(self->tids, self->header->target_name[i], Py_BuildValue("i", i));
 //        Py_INCREF(target);
         PyTuple_SET_ITEM(self->targets, i, target);
         
@@ -190,8 +208,9 @@ Bam_init(tactmod_BamObject *self, PyObject *args, PyObject *kwds) {
    if (!self->fd) {
         PyErr_SetString(PyExc_IOError, "Cannot open bam file");
         return NULL;
-    return 0;
     }
+    return 0;
+    
 }
 
 
@@ -209,17 +228,27 @@ PyObject *
 Bam_counts(tactmod_BamObject *self, PyObject *args) {
     tactmod_BamIter *iter;
     int tid, start, stop;
+    char *s; 
     uint32_t right_bound; 
-
-    if (!PyArg_ParseTuple(args, "iii", &tid, &start, &stop)) return NULL;
-
+    start = 0;
+    stop = 0;
+    if (!PyArg_ParseTuple(args, "s|ii", &s, &start, &stop)) return NULL;
+    
+    PyObject *index = PyDict_GetItemString(self->tids, s);
+    tid = PyInt_AS_LONG(index);
+    if (stop == 0) {
+        start = 0;
+        stop = self->header->target_len[tid];
+    } else {
+        start--;
+        stop--;
+    }
     iter = (tactmod_BamIter *)PyObject_New(tactmod_BamIter,
                                            &tactmod_BamIterType);
 //    Py_INCREF(iter); 
     uint8_t i = 0;
     right_bound = self->header->target_len[tid];
     if (right_bound < stop) {
-
         stop = right_bound;
     }
 
@@ -235,17 +264,19 @@ Bam_counts(tactmod_BamObject *self, PyObject *args) {
     iter->offset = 0;
     iter->position = start;
     iter->start = start;
-
+    iter->tid = tid;
     iter->stop = stop;
     return (PyObject *)iter;
 }
 
+static int
 fetch_f(const bam1_t *b, void *data) {
     // add this alignment to the pileup buffer
     // here would go a low level filter
-    if (b->core.n_cigar > 1) {
-        return 0;
-    }
+//    if (b->core.n_cigar > 1) {
+//        return 0;
+//    }
+
     tactmod_BamIter *s = (tactmod_BamIter *)data;
     bam_plbuf_t *pileup = (bam_plbuf_t *)s->pileup;
     bam_plbuf_push(b, pileup);
@@ -255,6 +286,7 @@ fetch_f(const bam1_t *b, void *data) {
 static int
 pileup_func(uint32_t tid, uint32_t pos, int n,
             const bam_pileup1_t *pl, void *data) {
+
     int offset, distance, length, r;
     uint8_t quality, mapping, baq, mapped, reverse, paired, duplicate;
     uint8_t base2;
@@ -269,7 +301,6 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
             column.features[i][j] = 0;
         }
     }
-//    trace("\t-> %d", pos);
     tactmod_BamIter *iterator = (tactmod_BamIter *)data;
     int start, end;
     queue *buffer = iterator->buffer;
@@ -281,7 +312,6 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     column.ambiguous = 0;
         //
     column.depth = n;
-//    trace("\t\tinside loop");
     for (r = 0; r < n; r++) {
         // append tuple to list
         length = 100; 
@@ -289,7 +319,6 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
         alignment = pl[r];
         b = alignment.b;
         column.indels += alignment.indel;
-//        trace("\t\t\t%d\t-> %d/%d\t%s", pos, i, n, b->data);
         
         //offset = pos - b->core.pos;
         offset = alignment.qpos; 
@@ -298,7 +327,6 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
             base_counts[base2]++;
         } else {
             column.ambiguous++;
-//            trace("boop");
             continue;
         }
         reverse = 1 && (b->core.flag & BAM_FREVERSE);
@@ -341,14 +369,9 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
             max = base_counts[i];
         }
     }
-//    trace("major:\t%d\tminor:\t%d", column.major, column.minor);
-//    uint16_t t = base_counts[column.major] + base_counts[column.minor];
-//    column.binomial_lll = binomial_ll(column.major, column.depth, 0.001); 
-//    column.binomial_ll = binomial_ll(column.major, column.depth, 0.5);
 
     column.position = (pos + 1); // HERE BE DRAGONS
     column.entropy = entropy(base_counts, column.depth);
-
     enqueue(buffer, column, column.position);
     buffer->end = column.position;
     return 0;
@@ -378,16 +401,15 @@ column_t dequeue(queue *list) {
     column_t content;
 
     queue_node *next;
-
     content = list->head->content;
     list->position = list->head->position;
     list->size--;
     next = list->head->next;
-
     free(list->head);
     list->head = next;
     return content;
 }
+
 queue *queue_init(void) {
     queue *buffer;
     buffer = (queue *)malloc(sizeof(queue));
@@ -424,7 +446,6 @@ double binomial_ll(uint16_t k, uint16_t n, double mu) {
         }
     }
     x = log(r) + (k * log(mu)) + (d * log(1 - mu));
-    //trace("major: %d,\ttotal: %d, score: %f (%f)", k, n, x, log(-x));
     return log(-x);
 }
 

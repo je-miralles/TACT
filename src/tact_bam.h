@@ -38,6 +38,7 @@ typedef struct {
     bam_header_t *header;
 //    bam_plbuf_t *pileup;
 //    PyObject *buffer;
+    PyDictObject *tids;
     PyObject *callback;
 } tactmod_BamObject;
 
@@ -92,6 +93,7 @@ typedef struct {
     uint16_t offset;
     uint32_t start;
     uint32_t stop;
+    int tid;
     tactmod_BamObject *bam;
     PyObject *return_value;
     bam_plbuf_t *pileup;

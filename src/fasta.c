@@ -6,8 +6,9 @@
 
 /* Fasta file iterator functions */
 PyMethodDef Fasta_methods[] = {
-    {"jump", (PyCFunction)Fasta_jump, METH_VARARGS, "jump to a position"},
     {"slice", (PyCFunction)Fasta_slice, METH_VARARGS, "slice a range"},
+    {"load", (PyCFunction)Fasta_load, METH_VARARGS, "load chromosome"},
+    {"tuple", (PyCFunction)Fasta_tuple, METH_VARARGS, "fetch tuple"},
     {"__enter__", (PyCFunction)Fasta_enter, METH_VARARGS, "context entry"},
     {"__exit__", (PyCFunction)Fasta_exit, METH_VARARGS, "context exit"},
     {NULL}
@@ -15,7 +16,6 @@ PyMethodDef Fasta_methods[] = {
 
 PyMemberDef Fasta_members[] = {
     {"contig", T_OBJECT_EX, offsetof(tactmod_FastaObject, contig), 0, "name"},
-//    {"contigs", T_OBJECT_EX, offsetof(PyObject, contigs), 0, "contigs"},
     {NULL}
 };
 
@@ -69,12 +69,17 @@ tactmod_FastaIter_iter(PyObject *self)
 PyObject *
 tactmod_FastaIter_next(PyObject *self)
 {
+    tactmod_FastaIter *s;
+
+    s = (tactmod_FastaIter *)self;
+    if (!s->base) {
+        Py_DECREF(s->base);
+    }
     tactmod_FastaIter *iter = (tactmod_FastaIter *) self;
-    if (iter->i < iter->length) {
-        PyObject *t = char_base(iter->sequence[iter->i]);
-        (iter->i)++;
+    if (iter->position < iter->length) {
+//        PyObject *t = char_base(iter->sequence[iter->i]);
         iter->position++;
-        return t;
+//        return t;
     }
     else {
         free(iter->sequence);
@@ -118,6 +123,8 @@ Fasta_init(tactmod_FastaObject *self, PyObject *args, PyObject *kwds)
         return NULL;
     }
 
+    self->return_value = NULL;
+    self->sequence = NULL;
     self->fd = fai_load(filename);
     Py_DECREF(filename);
     if (!self->fd) {
@@ -128,35 +135,89 @@ Fasta_init(tactmod_FastaObject *self, PyObject *args, PyObject *kwds)
 }
 
 PyObject *
-Fasta_jump(tactmod_FastaObject *self, PyObject *args)
+Fasta_load(tactmod_FastaObject *self, PyObject *args)
 {
-    int start, l;
+    uint32_t l;
     char *s;
-    char b;
-    PyObject *contig = NULL;
 
-    if (!PyArg_ParseTuple(args, "s", &contig)) return NULL; 
-
-    self->position = start;
-    //self->contig = contig
-    int end = start;
+    if (self->sequence != NULL) {
+        free(self->sequence);
+    }
+    if (!PyArg_ParseTuple(args, "s", &s)) return NULL; 
 
 //    int str_len = snprintf(NULL, 0, "%s:%d-%d", (char *)contig, start, end);
 //    const char fetch_str[str_len];
 //    sprintf(fetch_str, "%s:%d-%d", (char *)contig, start, end);
-    s = fai_fetch(self->fd, contig, &l);
-    if (s == NULL) {
+    self->sequence = fai_fetch(self->fd, s, &l);
+    self->length = l;
+    self->counts[0] = 0;
+    self->counts[1] = 0;
+    self->counts[2] = 0;
+    self->counts[4] = 0;
+    self->old_position = 0;
+    if (self->sequence == NULL) {
         PyErr_SetString(PyExc_ValueError, "Contig does not exist");
         return NULL;
     }
-    if (s[0] == '\x00') {
-        Py_INCREF(Py_None);
-        return Py_None;
+    
+    return Py_None;
+}
+
+PyObject *
+Fasta_tuple(tactmod_FastaObject *self, PyObject *args)
+{
+    base2_t b;
+    PyTupleObject *tuple; 
+    if (self->return_value != NULL) {
+        Py_DECREF(self->return_value);
+    }
+    tuple = PyTuple_New(5);
+    Py_INCREF(tuple);
+    uint32_t i, l, r;
+    uint32_t pos;
+    if (!PyArg_ParseTuple(args, "i", &pos)) return NULL;
+    if (pos > self->length)  {
+        return NULL;
+    }
+    pos--; // lower 1-based index to 0-based
+    uint16_t x;
+    uint16_t y;
+    uint16_t range = 1000;
+    if ((self->old_position == 0) || (abs(self->old_position - pos) > 300)) {
+        self->counts[0] = 0;
+        self->counts[1] = 0;
+        self->counts[2] = 0;
+        self->counts[3] = 0;
+        if (((int)pos - 500) < 0) {
+            l = 0;
+            r = 1000;
+        } else if ((pos + 500) > self->length) {
+            l = self->length - 1000;
+            r = self->length;
+        } else {
+            l = (pos - 500);
+            r = (pos + 500);
+        }
+         for (i = l; i < r; i++) {
+            b = char_base2(self->sequence[i]);
+            if (b <= 3) {
+                self->counts[b]++;
+            }
+        }
+        self->entropy = entropy_window(self->sequence, self->counts);
+        self->gc = gc_window(self->sequence, self->counts);
+        self->old_position = pos;
     }
 
-    b = s[0];
-    free(s);
-    return char_base(b);
+    x = h_f(self->sequence, pos);
+    y = h_b(self->sequence, pos);
+    PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong(char_base2(self->sequence[pos])));
+    PyTuple_SET_ITEM(tuple, 1, PyInt_FromLong(x));
+    PyTuple_SET_ITEM(tuple, 2, PyInt_FromLong(y));
+    PyTuple_SET_ITEM(tuple, 3, PyFloat_FromDouble(self->gc));
+    PyTuple_SET_ITEM(tuple, 4, PyFloat_FromDouble(self->entropy));
+    self->return_value = tuple;
+    return tuple;
 }
 
 PyObject *
@@ -166,11 +227,12 @@ Fasta_slice(tactmod_FastaObject *self, PyObject *args)
     long int end;
     char *contig = NULL;
     int tid;
-    int length;
+    uint32_t length;
     tactmod_FastaIter *i;
     if (!PyArg_ParseTuple(args, "s", &contig)) return NULL;
     i = PyObject_New(tactmod_FastaIter, &tactmod_FastaIterType);
     if (!i) return NULL;
+    Py_INCREF(i);
 
     if (!PyObject_Init((PyObject *)i, &tactmod_FastaIterType)) {
         Py_DECREF(i);
@@ -179,16 +241,81 @@ Fasta_slice(tactmod_FastaObject *self, PyObject *args)
     /* TODO: find a way to address positions in the Fasta file without
        this intermediate string */
     
-    length = end - start;
+//    length = end - start;
     i->sequence = fai_fetch(self->fd, contig, &length);
+
     if (!i->sequence) {
         PyErr_SetString(PyExc_ValueError, "Invalid range");
         return NULL;
     }
-    i->position = 100;
-    i->length = 100;
-    i->i = 0;
-    Py_INCREF(i);
+    i->position = 0;
+    i->length = length;
     return (PyObject *)i;
 }
+
+uint16_t
+h_f(char *sequence, uint32_t position) {
+    base2_t b;
+    base2_t next;
+    uint16_t count;
+    count = 0;
+    b = char_base2(sequence[position + 1]);
+    next = char_base2(sequence[position + 2]);
+    while ((b == next) && (b <= 3)) {
+        count++;
+        position++;
+        b = char_base2(sequence[position + 1]);
+        next = char_base2(sequence[position + 2]);
+    }
+    return count;
+
+}
+
+uint16_t
+h_b(char *sequence, uint32_t position) {
+    base2_t b;
+    base2_t next;
+    uint16_t count;
+    count = 0;
+    if (position <= 1) {
+        return 0;
+    }
+    b = char_base2(sequence[position - 1]);
+    next = char_base2(sequence[position - 2]);
+    while ((b == next) && (position >= 2) && (b <= 3)) {
+        count++;
+        position--;
+        b = char_base2(sequence[position - 1]);
+        next = char_base2(sequence[position - 2]);
+    }
+    return count;
+}
+
+double gc_window(char *sequence, uint16_t counts[4]) {
+    double gc, total;
+    gc = counts[1] + counts[2];
+    total = counts[0] + counts[1] + counts[2] + counts[3];
+    if (total == 0) {
+        return 0;
+    }
+    return gc / total;
+}
+
+double entropy_window(char *sequence, uint16_t counts[4]) {
+    double entropy, pr, total;
+    uint8_t i;
+    entropy = 0;
+    total = counts[0] + counts[1] + counts[2] + counts[3];
+    if (total == 0) {
+        return 0;
+    }
+    for (i = 0; i < 4; i++) {
+        pr = (double)counts[i] / total;
+        if (pr != 0) {
+            entropy += ((log(pr)/log(4)) * pr);
+        }
+    }
+    return -entropy;
+}
+
 
