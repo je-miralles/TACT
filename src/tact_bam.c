@@ -106,6 +106,7 @@ tactmod_BamIter_next(PyObject *self) {
         queue_destroy(buffer);
         buffer = NULL;
         buffer = queue_init();
+        iterator->buffer = buffer;
         buffer->fetch_start = start;
         buffer->fetch_stop = stop;
         pileup = bam_plbuf_init(pileup_func, iterator);
