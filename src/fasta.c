@@ -182,21 +182,21 @@ Fasta_tuple(tactmod_FastaObject *self, PyObject *args)
     pos--; // lower 1-based index to 0-based
     uint16_t x;
     uint16_t y;
-    uint16_t range = 1000;
-    if ((self->old_position == 0) || (abs(self->old_position - pos) > 300)) {
+    uint16_t range = 500;
+    if ((self->old_position == 0) || (abs(self->old_position - pos) > 150)) {
         self->counts[0] = 0;
         self->counts[1] = 0;
         self->counts[2] = 0;
         self->counts[3] = 0;
-        if (((int)pos - 500) < 0) {
+        if (((int)pos - (range / 2)) < 0) {
             l = 0;
-            r = 1000;
-        } else if ((pos + 500) > self->length) {
-            l = self->length - 1000;
+            r = range;
+        } else if ((pos + (range / 2)) > self->length) {
+            l = self->length - range;
             r = self->length;
         } else {
-            l = (pos - 500);
-            r = (pos + 500);
+            l = (pos - (range / 2));
+            r = (pos + (range / 2));
         }
          for (i = l; i < r; i++) {
             b = char_base2(self->sequence[i]);

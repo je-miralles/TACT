@@ -4,7 +4,6 @@
 #include <faidx.h>
 
 #define LOG_4 1.386294 
-#define PY_ARRAY_UNIQUE_SYMBOL tctm
 // Fasta file object
 typedef struct {
     PyObject_HEAD
