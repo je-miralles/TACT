@@ -4,7 +4,7 @@
 #include "structmember.h"
 #include "tact_bam.h"
 
-#define BAM_DEF_MASK 0
+// #define BAM_DEF_MASK 0
 
 /* 
  * tact_bam.c serves as a driver for the samtools bam library
@@ -143,14 +143,14 @@ tactmod_BamIter_next(PyObject *self) {
     for (i = 0; i < 5; i++) {
         nested_tuple = PyTuple_New(6);
         for (j = 0; j < 6; j++) {
-            PyTuple_SET_ITEM(nested_tuple, j, PyInt_FromLong((long)column.features[i][j]));
+            PyTuple_SET_ITEM(nested_tuple, j, PyFloat_FromDouble((double)column.features[i][j]));
         }
         PyTuple_SET_ITEM(tuple, i + 1, nested_tuple);
     }
     PyTuple_SET_ITEM(tuple, 6, PyInt_FromLong((long)column.major));
     PyTuple_SET_ITEM(tuple, 7, PyInt_FromLong((long)column.minor));
-    PyTuple_SET_ITEM(tuple, 8, PyInt_FromLong((long)column.ambiguous));
-    PyTuple_SET_ITEM(tuple, 9, PyInt_FromLong((long)column.indels));
+    PyTuple_SET_ITEM(tuple, 8, PyFloat_FromDouble((double)column.ambiguous));
+    PyTuple_SET_ITEM(tuple, 9, PyFloat_FromDouble((double)column.indels));
     PyTuple_SET_ITEM(tuple, 10, PyFloat_FromDouble(column.entropy));
 //    PyTuple_SET_ITEM(tuple, 11, PyFloat_FromDouble(0.0));
     Py_INCREF(tuple);
@@ -161,6 +161,7 @@ tactmod_BamIter_next(PyObject *self) {
 
 void
 Bam_dealloc(tactmod_BamObject *self) {
+    trace("deallocating bam");
     bam_index_destroy(self->idx);
     samclose(self->fd);
     Py_DECREF(self->tids);
@@ -287,7 +288,10 @@ fetch_f(const bam1_t *b, void *data) {
 static int
 pileup_func(uint32_t tid, uint32_t pos, int n,
             const bam_pileup1_t *pl, void *data) {
-
+    
+    if (n <= 4) {
+        return 0;
+    }
     int offset, distance, length, r;
     uint8_t quality, mapping, baq, mapped, reverse, paired, duplicate;
     uint8_t base2;
@@ -353,6 +357,9 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
         column.features[4][3] += distance;
         column.features[4][4] += reverse;
         column.features[4][5] += 0;
+    }
+    if (column.features[4][0] == 0) {
+        return 0;
     }
     column.major = 0;
     uint16_t max = 0;

@@ -5,9 +5,6 @@
 #include "base.h"
 #include "column.h"
 
-#define PY_ARRAY_UNIQUE_SYMBOL tctm
-#include "arrayobject.h"
-
 #define TOTAL_INDEX 0
 #define QUALITY_INDEX   1
 #define DIRECTION_INDEX 2
