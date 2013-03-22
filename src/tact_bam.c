@@ -51,19 +51,20 @@ PyTypeObject tactmod_BamIterType = {
     tactmod_BamIter_next,
 };
 
-PyObject *
-tactmod_BamIter_iter(PyObject *self) {
+tactmod_BamIter *
+tactmod_BamIter_iter(tactmod_BamIter *self) {
     // Initialize pileup buffer
-    tactmod_BamIter *s = (tactmod_BamIter *)self;
-    s->buffer = queue_init();
-    s->return_value = NULL;
+    trace("incrementing iterator reference count");
     Py_INCREF(self);
+    self->buffer = queue_init();
+    self->return_value = NULL;
+    self->position = 0;
     // Check for the rightmost limit of this contig
     return self;
 }
 
-PyObject *
-tactmod_BamIter_next(PyObject *self) {
+tactmod_BamIter *
+tactmod_BamIter_next(tactmod_BamIter *self) {
     uint32_t start;
     uint32_t end;
     int status;
@@ -71,60 +72,53 @@ tactmod_BamIter_next(PyObject *self) {
     uint8_t i, j;
     int loop = 1;
     uint32_t stop = 0;
-//    pileup_buffer buffer;
-    tactmod_BamIter *iterator = (tactmod_BamIter *)self; 
-    tactmod_BamObject *bam = iterator->bam;
-    bam_plbuf_t *pileup;
-    PyTupleObject *tuple = iterator->return_value;
     PyTupleObject *features;
     PyTupleObject *nested_tuple;
+    PyTupleObject *tuple;
     PyIntObject *value;
-    queue *buffer = iterator->buffer;
     column_t column;
+    
     // fall off the end
-    if (iterator->position >= iterator->stop) {
-        queue_destroy(buffer);
+    if (self->position >= self->stop) {
+        queue_destroy(self->buffer);
         Py_DECREF(self);
         PyErr_SetNone(PyExc_StopIteration);
         return NULL;
     }
 
-    while (((iterator->position >= buffer->end) || (buffer->size == 0)) &&
-           (buffer->end <= iterator->stop)) {
+    while (((self->position >= self->buffer->end) || (self->buffer->size == 0)) &&
+           (self->buffer->end <= self->stop)) {
       
-        if (buffer->position == 0) {
-            start = iterator->start;
+        if (self->buffer->position == 0) {
+            start = self->start;
         } else {
-            start = buffer->end;
+            start = self->buffer->end;
         }
 
         stop = start + BUFFER_SIZE;
 
-        if (stop > iterator->stop) {
-            stop = iterator->stop;
+        if (stop > self->stop) {
+            stop = self->stop;
         }
-        queue_destroy(buffer);
-        buffer = NULL;
-        buffer = queue_init();
-        iterator->buffer = buffer;
-        buffer->fetch_start = start;
-        buffer->fetch_stop = stop;
-        pileup = bam_plbuf_init(pileup_func, iterator);
-        iterator->pileup = pileup;
-        bam_fetch(bam->fd->x.bam, bam->idx, iterator->tid,
-                  start, stop, (void *)iterator, fetch_f);
+        queue_destroy(self->buffer);
+        self->buffer = queue_init();
+        self->buffer->fetch_start = start;
+        self->buffer->fetch_stop = stop;
+        self->pileup = bam_plbuf_init(pileup_func, self);
+        bam_fetch(self->bam->fd->x.bam, self->bam->idx, self->tid,
+                  start, stop, (void *)self, fetch_f);
      
         // top off the buffer (as per samtools doc)
-        bam_plbuf_push(0, pileup);
-        bam_plbuf_destroy(pileup);
-         if ((stop >= iterator->stop) && (buffer->size == 0)) {
-            queue_destroy(buffer);
+        bam_plbuf_push(0, self->pileup);
+        bam_plbuf_destroy(self->pileup);
+         if ((stop >= self->stop) && (self->buffer->size == 0)) {
+            queue_destroy(self->buffer);
             Py_DECREF(self);
             PyErr_SetNone(PyExc_StopIteration);
             return NULL;
-        } else if (buffer->size == 0) {
-            buffer->position = stop;
-            buffer->end = stop;
+        } else if (self->buffer->size == 0) {
+            self->buffer->position = stop;
+            self->buffer->end = stop;
         }
 
        loop++;
@@ -132,11 +126,11 @@ tactmod_BamIter_next(PyObject *self) {
 //
 //  Construct the tuple
 //    
-    column = dequeue(buffer);
-    iterator->buffer = buffer; 
-    iterator->position = column.position;
-    if (tuple) {
-        Py_DECREF(tuple);
+    column = dequeue(self->buffer);
+    self->position = column.position;
+
+    if (self->return_value) {
+        Py_DECREF(self->return_value);
     }
     tuple = PyTuple_New(11);
     PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong((long)column.position));
@@ -154,7 +148,7 @@ tactmod_BamIter_next(PyObject *self) {
     PyTuple_SET_ITEM(tuple, 10, PyFloat_FromDouble(column.entropy));
 //    PyTuple_SET_ITEM(tuple, 11, PyFloat_FromDouble(0.0));
     Py_INCREF(tuple);
-    iterator->return_value = tuple; 
+    self->return_value = tuple; 
     return tuple;
 
 }
@@ -170,7 +164,7 @@ Bam_dealloc(tactmod_BamObject *self) {
     self->ob_type->tp_free((PyObject*)self);
 }
 
-static PyObject *
+static tactmod_BamObject *
 Bam_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
     tactmod_BamObject *self;
     self = (tactmod_BamObject *)type->tp_alloc(type, 0);
@@ -182,7 +176,7 @@ Bam_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
         }
         self->fd = NULL;
     }
-    return (PyObject *)self;
+    return self;
 }
 
 int
@@ -226,7 +220,7 @@ Bam_slice(tactmod_BamObject *self, PyObject *args) {
     return Py_None;
 }
 
-PyObject *
+tactmod_BamIter *
 Bam_counts(tactmod_BamObject *self, PyObject *args) {
     tactmod_BamIter *iter;
     int tid, start, stop;
@@ -247,7 +241,8 @@ Bam_counts(tactmod_BamObject *self, PyObject *args) {
     }
     iter = (tactmod_BamIter *)PyObject_New(tactmod_BamIter,
                                            &tactmod_BamIterType);
-//    Py_INCREF(iter); 
+//    PyObject_Init((PyObject *)iter, &tactmod_BamIterType);
+    Py_INCREF(iter); 
     uint8_t i = 0;
     right_bound = self->header->target_len[tid];
     if (right_bound < stop) {
@@ -265,6 +260,8 @@ Bam_counts(tactmod_BamObject *self, PyObject *args) {
     iter->bam = self;
     iter->offset = 0;
     iter->position = start;
+    iter->return_value = NULL;
+    iter->buffer = NULL;
     iter->start = start;
     iter->tid = tid;
     iter->stop = stop;
