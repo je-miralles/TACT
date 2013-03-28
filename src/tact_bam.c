@@ -54,7 +54,6 @@ PyTypeObject tactmod_BamIterType = {
 tactmod_BamIter *
 tactmod_BamIter_iter(tactmod_BamIter *self) {
     // Initialize pileup buffer
-    trace("incrementing iterator reference count");
     Py_INCREF(self);
     self->buffer = queue_init();
     self->return_value = NULL;
@@ -155,7 +154,6 @@ tactmod_BamIter_next(tactmod_BamIter *self) {
 
 void
 Bam_dealloc(tactmod_BamObject *self) {
-    trace("deallocating bam");
     bam_index_destroy(self->idx);
     samclose(self->fd);
     Py_DECREF(self->tids);
@@ -182,21 +180,23 @@ Bam_new(PyTypeObject *type, PyObject *args, PyObject *kwds) {
 int
 Bam_init(tactmod_BamObject *self, PyObject *args, PyObject *kwds) {
     uint8_t i;
-    PyObject *filename = NULL;
+    char *filename = NULL;
+    self->header = NULL;
     PyObject *target = NULL;
     if (!PyArg_ParseTuple(args, "s", &filename)) {
         return NULL;
     }
+//    Py_INCREF(filename);
     self->tids = PyDict_New();
     Py_INCREF(self->tids);
     self->fd = samopen(filename, "rb", 0);
-    self->header = self->fd->header;
+    //self->header = self->fd->header;
     self->idx = bam_index_load(filename);
-    self->targets = PyTuple_New(self->header->n_targets);
+    self->targets = PyTuple_New(self->fd->header->n_targets);
     Py_INCREF(self->targets);
-    for (i = 0; i < self->header->n_targets; i++) {
-        target = Py_BuildValue("s", self->header->target_name[i]);
-        PyDict_SetItemString(self->tids, self->header->target_name[i], Py_BuildValue("i", i));
+    for (i = 0; i < self->fd->header->n_targets; i++) {
+        target = Py_BuildValue("s", self->fd->header->target_name[i]);
+        PyDict_SetItemString(self->tids, self->fd->header->target_name[i], Py_BuildValue("i", i));
 //        Py_INCREF(target);
         PyTuple_SET_ITEM(self->targets, i, target);
         
@@ -234,7 +234,7 @@ Bam_counts(tactmod_BamObject *self, PyObject *args) {
     tid = PyInt_AS_LONG(index);
     if (stop == 0) {
         start = 0;
-        stop = self->header->target_len[tid];
+        stop = self->fd->header->target_len[tid];
     } else {
         start--;
         stop--;
@@ -244,7 +244,7 @@ Bam_counts(tactmod_BamObject *self, PyObject *args) {
 //    PyObject_Init((PyObject *)iter, &tactmod_BamIterType);
     Py_INCREF(iter); 
     uint8_t i = 0;
-    right_bound = self->header->target_len[tid];
+    right_bound = self->fd->header->target_len[tid];
     if (right_bound < stop) {
         stop = right_bound;
     }
