@@ -62,6 +62,7 @@ typedef struct {
     uint8_t major;
     uint8_t minor;
     int indels;
+    uint16_t is_del;
     double entropy;
     uint16_t ambiguous;
 } column_t;

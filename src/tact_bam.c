@@ -131,7 +131,7 @@ tactmod_BamIter_next(tactmod_BamIter *self) {
     if (self->return_value) {
         Py_DECREF(self->return_value);
     }
-    tuple = PyTuple_New(11);
+    tuple = PyTuple_New(12);
     PyTuple_SET_ITEM(tuple, 0, PyInt_FromLong((long)column.position));
     for (i = 0; i < 5; i++) {
         nested_tuple = PyTuple_New(6);
@@ -145,6 +145,7 @@ tactmod_BamIter_next(tactmod_BamIter *self) {
     PyTuple_SET_ITEM(tuple, 8, PyFloat_FromDouble((double)column.ambiguous));
     PyTuple_SET_ITEM(tuple, 9, PyFloat_FromDouble((double)column.indels));
     PyTuple_SET_ITEM(tuple, 10, PyFloat_FromDouble(column.entropy));
+    PyTuple_SET_ITEM(tuple, 11, PyInt_FromLong((long)column.is_del));
 //    PyTuple_SET_ITEM(tuple, 11, PyFloat_FromDouble(0.0));
     Py_INCREF(tuple);
     self->return_value = tuple; 
@@ -309,7 +310,8 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
     if ((pos < buffer->fetch_start) || (pos > buffer->fetch_stop)) {
         return 0;
     }
-
+    
+    column.is_del = 0;
     column.indels = 0;
     column.ambiguous = 0;
         //
@@ -321,7 +323,7 @@ pileup_func(uint32_t tid, uint32_t pos, int n,
         alignment = pl[r];
         b = alignment.b;
         column.indels += alignment.indel;
-        
+        column.is_del += alignment.is_del;   
         //offset = pos - b->core.pos;
         offset = alignment.qpos; 
         base2 = base4_base2(bam1_seqi(bam1_seq(b), offset));
